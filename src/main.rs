@@ -33,6 +33,7 @@ use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::SystemInformation::GetLocalTime;
 use windows::Win32::UI::HiDpi::*;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
+use windows::Win32::UI::Shell::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 // All dimensions in dp (1 dp = 1 px at 100% scale).
@@ -44,6 +45,7 @@ const OPEN: (f32, f32, f32) = (500.0, 180.0, 36.0); // width, height, radius
 
 const WM_APP_MEDIA: u32 = WM_APP + 1;
 const WM_APP_KEY: u32 = WM_APP + 2;
+const WM_APP_TRAY: u32 = WM_APP + 3;
 const WM_MOUSELEAVE: u32 = 0x02A3; // not exported by WindowsAndMessaging module
 const PBT_APMPOWERSTATUSCHANGE: usize = 0x0A;
 const HOTKEY_TOGGLE: i32 = 100;
@@ -275,10 +277,13 @@ fn with_app<R>(f: impl FnOnce(&mut App) -> R) -> Option<R> {
 
 /// Right-click context menu. Called outside `with_app` because the menu runs its own message loop.
 fn show_menu(hwnd: HWND) {
-    const AUTOSTART: usize = 1;
-    const QUIT: usize = 2;
+    const TOGGLE: usize = 1;
+    const AUTOSTART: usize = 2;
+    const QUIT: usize = 3;
     unsafe {
         let Ok(menu) = CreatePopupMenu() else { return };
+        let _ = AppendMenuW(menu, MF_STRING, TOGGLE, w!("Toggle Open / Close"));
+        let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
         let check = if system::autostart() { MF_CHECKED } else { MF_UNCHECKED };
         let _ = AppendMenuW(menu, MF_STRING | check, AUTOSTART, w!("Start with Windows"));
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
@@ -289,6 +294,9 @@ fn show_menu(hwnd: HWND) {
         let cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_TOPALIGN, pt.x, pt.y, 0, hwnd, None);
         let _ = DestroyMenu(menu);
         match cmd.0 as usize {
+            TOGGLE => {
+                with_app(|a| a.toggle_open());
+            }
             AUTOSTART => system::set_autostart(!system::autostart()),
             QUIT => {
                 let _ = DestroyWindow(hwnd);
@@ -351,6 +359,17 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
         WM_APP_MEDIA => {
             with_app(|a| a.on_media());
         }
+        WM_APP_TRAY => {
+            match lp.0 as u32 {
+                WM_LBUTTONUP => {
+                    with_app(|a| a.toggle_open());
+                }
+                WM_RBUTTONUP => {
+                    show_menu(hwnd);
+                }
+                _ => {}
+            }
+        }
         WM_APP_KEY => {
             let timer = if wp.0 == system::KEY_VOLUME { TIMER_VOLUME } else { TIMER_CAPS };
             SetTimer(hwnd, timer, 60, None);
@@ -370,6 +389,13 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             }
         }
         WM_DESTROY => {
+            let nid = NOTIFYICONDATAW {
+                cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+                hWnd: hwnd,
+                uID: 1,
+                ..Default::default()
+            };
+            let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
             let _ = UnregisterHotKey(hwnd, HOTKEY_TOGGLE);
             PostQuitMessage(0);
         }
@@ -500,6 +526,20 @@ fn main() -> Result<()> {
         SetTimer(hwnd, TIMER_TICK, 1000, None);
         system::install_key_hook(hwnd, WM_APP_KEY);
         let _ = RegisterHotKey(hwnd, HOTKEY_TOGGLE, MOD_WIN | MOD_ALT | MOD_NOREPEAT, 'N' as u32);
+
+        let mut nid = NOTIFYICONDATAW {
+            cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+            hWnd: hwnd,
+            uID: 1,
+            uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
+            uCallbackMessage: WM_APP_TRAY,
+            hIcon: LoadIconW(None, IDI_APPLICATION).unwrap_or_default(),
+            szTip: [0; 128],
+            ..Default::default()
+        };
+        let tip = "Notch\0".encode_utf16().collect::<Vec<u16>>();
+        nid.szTip[..tip.len()].copy_from_slice(&tip);
+        let _ = Shell_NotifyIconW(NIM_ADD, &nid);
 
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
