@@ -113,6 +113,24 @@ pub fn path() -> Option<PathBuf> {
     Some(PathBuf::from(std::env::var("APPDATA").ok()?).join("Notch").join("config.toml"))
 }
 
+/// Parses hex color strings like "#3B82F6", "3B82F6", "#FFF", or "FFF".
+pub fn parse_hex_color(hex: &str) -> Option<[u8; 3]> {
+    let s = hex.trim().trim_start_matches('#');
+    if s.len() == 6 {
+        let r = u8::from_str_radix(&s[0..2], 16).ok()?;
+        let g = u8::from_str_radix(&s[2..4], 16).ok()?;
+        let b = u8::from_str_radix(&s[4..6], 16).ok()?;
+        Some([r, g, b])
+    } else if s.len() == 3 {
+        let r = u8::from_str_radix(&s[0..1], 16).ok()? * 17;
+        let g = u8::from_str_radix(&s[1..2], 16).ok()? * 17;
+        let b = u8::from_str_radix(&s[2..3], 16).ok()? * 17;
+        Some([r, g, b])
+    } else {
+        None
+    }
+}
+
 const DEFAULT_CONFIG_TEMPLATE: &str = r##"# Notch Configuration File (config.toml)
 # Edit values and restart Notch or toggle to apply changes.
 
@@ -210,5 +228,13 @@ mod tests {
         assert!(!cfg.tabs.focus);
         assert!(cfg.tabs.shelf);
         assert!(cfg.tabs.tasks);
+    }
+
+    #[test]
+    fn parses_hex_colors() {
+        assert_eq!(parse_hex_color("#3B82F6"), Some([0x3B, 0x82, 0xF6]));
+        assert_eq!(parse_hex_color("3b82f6"), Some([0x3B, 0x82, 0xF6]));
+        assert_eq!(parse_hex_color("#fff"), Some([255, 255, 255]));
+        assert_eq!(parse_hex_color("invalid"), None);
     }
 }

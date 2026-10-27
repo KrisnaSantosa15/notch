@@ -202,7 +202,17 @@ impl App {
     }
 
     fn accent(&self) -> [u8; 3] {
-        self.info.art.as_ref().map_or(WHITE, |art| art.accent)
+        if self.config.theme.accent_mode.eq_ignore_ascii_case("custom") {
+            if let Some(rgb) = config::parse_hex_color(&self.config.theme.custom_accent) {
+                return rgb;
+            }
+        }
+        self.info
+            .art
+            .as_ref()
+            .map(|art| art.accent)
+            .or_else(|| config::parse_hex_color(&self.config.theme.custom_accent))
+            .unwrap_or(WHITE)
     }
 
     // ---- Open notch -------------------------------------------------------------------------
