@@ -17,11 +17,35 @@
 
 ## Running
 
+## Installation
+
+### WinGet (Windows Package Manager)
+
+Install Notch directly via PowerShell or Windows Terminal:
+
+```powershell
+winget install KrisnaSantosa15.notch
 ```
+
+### Manual / From Source
+
+```powershell
+git clone https://github.com/KrisnaSantosa15/notch.git
+cd notch
 cargo run --release
 ```
 
 Produces `target\release\notch.exe`, ready to run directly.
+
+## Configuration (`config.toml`)
+
+Notch creates a configuration file at `%APPDATA%\Notch\config.toml` upon launch. You can easily open it by right-clicking the notch or tray icon and selecting **Edit config.toml**.
+
+Supported settings:
+- **Dimensions**: Closed/open width, height, and corner radius curvature.
+- **Tabs**: Enable or disable specific tabs (`media`, `focus`, `shelf`, `tasks`).
+- **Theme**: Accent color mode (`album_art` or `custom` hex code like `#3B82F6`).
+- **Behavior**: Auto-close delay (ms) and hover-to-open toggle.
 
 ## Features
 
@@ -67,6 +91,8 @@ Data is saved to `%APPDATA%\Notch\state.txt`.
 - `tasks.rs`: tasks and reminder times
 - `store.rs`: save and load persistent state
 - `system.rs`: volume, Caps Lock, battery, keyboard layout, glass blur, autostart
+- `config.rs`: load, validate, and manage user settings from `config.toml`
+- `update.rs`: background GitHub Releases update checker and notification
 - `text.rs`: text rendering using Segoe UI font
 
 ## Testing
