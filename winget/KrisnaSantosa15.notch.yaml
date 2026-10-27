@@ -27,6 +27,6 @@ Installers:
       - RelativeFilePath: notch.exe
         PortableCommandAlias: notch
     InstallerUrl: https://github.com/KrisnaSantosa15/notch/releases/download/v0.4.0/notch-windows-x86_64.zip
-    InstallerSha256: 2CFB83E028D622C26449F1124125F9FF498733B5DBC525C95FA0AAE3A1E83745
+    InstallerSha256: 104476361F44F948C133D2D3ADBF43E4917B0998B27C35DB04ED1A9549AC0841
 ManifestType: singleton
 ManifestVersion: 1.9.0
