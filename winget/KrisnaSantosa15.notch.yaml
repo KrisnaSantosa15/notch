@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.9.0.schema.json
 
 PackageIdentifier: KrisnaSantosa15.notch
-PackageVersion: 0.3.0
+PackageVersion: 0.4.0
 PackageLocale: en-US
 PackageName: Notch
 Publisher: Krisna Santosa
@@ -26,7 +26,7 @@ Installers:
     NestedInstallerFiles:
       - RelativeFilePath: notch.exe
         PortableCommandAlias: notch
-    InstallerUrl: https://github.com/KrisnaSantosa15/notch/releases/download/v0.3.0/notch-windows-x86_64.zip
+    InstallerUrl: https://github.com/KrisnaSantosa15/notch/releases/download/v0.4.0/notch-windows-x86_64.zip
     InstallerSha256: 2CFB83E028D622C26449F1124125F9FF498733B5DBC525C95FA0AAE3A1E83745
 ManifestType: singleton
 ManifestVersion: 1.9.0

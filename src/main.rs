@@ -348,9 +348,10 @@ fn show_menu(hwnd: HWND) {
                 }
             }
             ABOUT => {
-                let text = w!("Notch v0.3.0\nCreated by Krisna Santosa\n\nMacBook-like dynamic notch for Windows 10/11.\nLicensed under GNU AGPLv3.");
+                let msg = format!("Notch v{}\nCreated by Krisna Santosa\n\nMacBook-like dynamic notch for Windows 10/11.\nLicensed under GNU AGPLv3.", env!("CARGO_PKG_VERSION"));
+                let msg_w: Vec<u16> = msg.encode_utf16().chain(std::iter::once(0)).collect();
                 let caption = w!("About Notch");
-                let _ = MessageBoxW(hwnd, text, caption, MB_OK | MB_ICONINFORMATION);
+                let _ = MessageBoxW(hwnd, windows::core::PCWSTR(msg_w.as_ptr()), caption, MB_OK | MB_ICONINFORMATION);
             }
             UPDATE => {
                 if let Some(info) = update_info {
