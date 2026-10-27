@@ -5,6 +5,12 @@
 <h1 align="center">Notch</h1>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Author-Krisna%20Santosa-blue?style=flat-square" alt="Author Krisna Santosa" />
+  <img src="https://img.shields.io/badge/License-AGPL%20v3-green?style=flat-square" alt="License: AGPL v3" />
+  <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat-square" alt="Platform" />
+</p>
+
+<p align="center">
   <b>MacBook-like dynamic notch at the top edge of Windows 10/11 screens.</b><br>
   Written in Rust without a web engine: exe ±1 MB, memory ±45 MB, and 0% CPU when idle.
 </p>
@@ -76,10 +82,14 @@ cargo test -- --ignored  # includes fetching lyrics from the internet
 - `NOTCH_DUMP=frame.png`: dump the last frame to a PNG file
 - `NOTCH_FAKE_MEDIA="title|artist|duration|position"`: simulate a playing track
 
+## License
+
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPLv3) &copy; 2026 Krisna Santosa.
+
 <hr>
 
 <p align="center">
-  Notch is open source. Built with Love by Krisna Santosa.
+  Notch is open source. Built with Love by <b>Krisna Santosa</b>.
 </p>
 <p align="center">
   <img src="assets/notch-logo.jpg" width="100" alt="Notch Logo" style="border-radius: 20px;" />

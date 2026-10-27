@@ -2,6 +2,9 @@
 name = "notch"
 version = "0.3.0"
 edition = "2021"
+authors = ["Krisna Santosa"]
+description = "MacBook-like dynamic notch at the top edge of Windows 10/11 screens"
+license = "AGPL-3.0-or-later"
 
 [dependencies]
 tiny-skia = "0.11"
