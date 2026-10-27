@@ -1,7 +1,13 @@
-# Notch
+<p align="center">
+  <img src="assets/notch-banner.jpg" alt="Notch Banner" width="100%" />
+</p>
 
-MacBook-like notch at the top edge of Windows 10/11 screens. Written in Rust without a web engine:
-exe ±1 MB, memory ±45 MB, and 0% CPU when idle.
+<h1 align="center">Notch</h1>
+
+<p align="center">
+  <b>MacBook-like dynamic notch at the top edge of Windows 10/11 screens.</b><br>
+  Written in Rust without a web engine: exe ±1 MB, memory ±45 MB, and 0% CPU when idle.
+</p>
 
 ## Running
 
@@ -67,3 +73,12 @@ cargo test -- --ignored  # includes fetching lyrics from the internet
 - `NOTCH_OPEN=music|focus|shelf|tasks`: open the notch without hovering
 - `NOTCH_DUMP=frame.png`: dump the last frame to a PNG file
 - `NOTCH_FAKE_MEDIA="title|artist|duration|position"`: simulate a playing track
+
+<hr>
+
+<p align="center">
+  Notch is open source. Built with Love by Krisna Santosa.
+</p>
+<p align="center">
+  <img src="assets/notch-logo.jpg" width="100" alt="Notch Logo" style="border-radius: 20px;" />
+</p>
