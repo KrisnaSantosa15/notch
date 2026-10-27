@@ -548,6 +548,16 @@ impl App {
             dirty = true;
         }
 
+        if self.tick % 2 == 0 {
+            let stats = (system::cpu_usage(), system::ram_usage());
+            if stats != self.stats {
+                self.stats = stats;
+                if self.open {
+                    dirty = true;
+                }
+            }
+        }
+
         // keyboard layout changed within the same window (not from switching apps)
         let keyboard = system::keyboard_layout();
         if keyboard.0 == self.keyboard.0 && keyboard.1 != self.keyboard.1 && keyboard.1 != 0 {

@@ -228,6 +228,60 @@ pub fn clipboard_text(hwnd: HWND) -> Option<String> {
     }
 }
 
+// ---- System Stats (CPU & RAM) ------------------------------------------------------------
+
+pub fn ram_usage() -> u8 {
+    use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+    unsafe {
+        let mut status = MEMORYSTATUSEX {
+            dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
+            ..Default::default()
+        };
+        if GlobalMemoryStatusEx(&mut status).is_ok() {
+            status.dwMemoryLoad.min(100) as u8
+        } else {
+            0
+        }
+    }
+}
+
+pub fn cpu_usage() -> u8 {
+    use std::sync::Mutex;
+    use windows::Win32::System::Threading::GetSystemTimes;
+    static PREV_TIMES: Mutex<Option<(u64, u64, u64)>> = Mutex::new(None);
+
+    unsafe {
+        let mut idle = FILETIME::default();
+        let mut kernel = FILETIME::default();
+        let mut user = FILETIME::default();
+        if GetSystemTimes(Some(&mut idle), Some(&mut kernel), Some(&mut user)).is_err() {
+            return 0;
+        }
+
+        let to_u64 = |ft: FILETIME| ((ft.dwHighDateTime as u64) << 32) | (ft.dwLowDateTime as u64);
+        let cur_idle = to_u64(idle);
+        let cur_kernel = to_u64(kernel);
+        let cur_user = to_u64(user);
+
+        let mut lock = PREV_TIMES.lock().unwrap();
+        if let Some((prev_idle, prev_kernel, prev_user)) = *lock {
+            let d_idle = cur_idle.saturating_sub(prev_idle);
+            let d_kernel = cur_kernel.saturating_sub(prev_kernel);
+            let d_user = cur_user.saturating_sub(prev_user);
+            let total = d_kernel + d_user;
+
+            *lock = Some((cur_idle, cur_kernel, cur_user));
+            if total > 0 && d_idle <= total {
+                let usage = ((total - d_idle) as f64 / total as f64 * 100.0).round();
+                return (usage as u8).min(100);
+            }
+        } else {
+            *lock = Some((cur_idle, cur_kernel, cur_user));
+        }
+        0
+    }
+}
+
 // ---- Privacy Indicator (Camera & Microphone In-Use) --------------------------------------
 
 fn is_device_in_use(device: &str) -> bool {

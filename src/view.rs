@@ -220,14 +220,23 @@ impl App {
         let now = unsafe { GetLocalTime() };
         let clock = format!("{:02}:{:02}", now.wHour, now.wMinute);
         let right = c.f.text_right(x1 - 26.0, 29.0, 13.0, true, WHITE, a, &clock);
-        match self.battery {
+        let left_info = match self.battery {
             Some((charging, pct)) => {
                 c.f.icon(Icon::Battery(pct as f32 / 100.0, charging), right - 20.0, 24.5, 16.0, WHITE, a);
-                c.f.text_right(right - 33.0, 29.0, 12.0, false, WHITE, a * SOFT, &format!("{pct}%"));
+                c.f.text_right(right - 33.0, 29.0, 12.0, false, WHITE, a * SOFT, &format!("{pct}%"))
             }
             None => {
                 let day = format!("{} {}", DAYS[now.wDayOfWeek as usize % 7], now.wDay);
-                c.f.text_right(right - 8.0, 29.0, 13.0, false, WHITE, a * SOFT, &day);
+                c.f.text_right(right - 8.0, 29.0, 13.0, false, WHITE, a * SOFT, &day)
+            }
+        };
+
+        // System stats (CPU & RAM) displayed subtly in the header gap
+        if self.stats.1 > 0 {
+            let stats_text = format!("CPU {}%  RAM {}%", self.stats.0, self.stats.1);
+            let stats_w = c.f.width(&stats_text, 11.0, false);
+            if left_info - stats_w - 16.0 > x {
+                c.f.text_right(left_info - 16.0, 29.0, 11.0, false, WHITE, a * SOFT * 0.75, &stats_text);
             }
         }
 
