@@ -545,6 +545,7 @@ impl App {
         let privacy = system::privacy_status();
         if privacy != self.privacy {
             self.privacy = privacy;
+            self.bump();
             dirty = true;
         }
 

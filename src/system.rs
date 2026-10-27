@@ -365,7 +365,9 @@ unsafe fn check_key_in_use(key: HKEY) -> bool {
             Some(&mut size_start),
         );
 
-        if res_stop.is_ok() && res_start.is_ok() && stop == 0 && start > 0 {
+        // An app is currently using the device if it has started and either never stopped (stop == 0)
+        // or the start timestamp is newer than the stop timestamp (start > stop).
+        if res_start.is_ok() && start > 0 && (res_stop.is_err() || stop == 0 || start > stop) {
             return true;
         }
     }

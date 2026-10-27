@@ -158,13 +158,15 @@ impl App {
         // Privacy indicator dots (green for camera, orange for microphone)
         let (cam, mic) = self.privacy;
         if cam || mic {
-            let mut dot_x = x1 - 8.0;
+            let mut dot_x = x1 - 20.0;
             if cam {
-                f.circle(dot_x, cy, 2.5, GREEN, a);
-                dot_x -= 7.0;
+                f.circle(dot_x, cy, 6.0, GREEN, 0.28 * a);
+                f.circle(dot_x, cy, 3.5, GREEN, a);
+                dot_x -= 12.0;
             }
             if mic {
-                f.circle(dot_x, cy, 2.5, ORANGE, a);
+                f.circle(dot_x, cy, 6.0, ORANGE, 0.28 * a);
+                f.circle(dot_x, cy, 3.5, ORANGE, a);
             }
         }
     }
@@ -242,13 +244,15 @@ impl App {
 
         let (cam, mic) = self.privacy;
         if cam || mic {
-            let mut dot_x = x1 - 12.0;
+            let mut dot_x = x1 - 16.0;
             if cam {
-                c.f.circle(dot_x, 18.0, 2.5, GREEN, a);
-                dot_x -= 7.0;
+                c.f.circle(dot_x, 18.0, 5.0, GREEN, 0.28 * a);
+                c.f.circle(dot_x, 18.0, 3.0, GREEN, a);
+                dot_x -= 10.0;
             }
             if mic {
-                c.f.circle(dot_x, 18.0, 2.5, ORANGE, a);
+                c.f.circle(dot_x, 18.0, 5.0, ORANGE, 0.28 * a);
+                c.f.circle(dot_x, 18.0, 3.0, ORANGE, a);
             }
         }
     }
