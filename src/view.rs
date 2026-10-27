@@ -154,6 +154,19 @@ impl App {
             }
             Live::Idle => f.eyes(cx, 15.0, 3.2, 9.0, self.blink, a),
         }
+
+        // Privacy indicator dots (green for camera, orange for microphone)
+        let (cam, mic) = self.privacy;
+        if cam || mic {
+            let mut dot_x = x1 - 8.0;
+            if cam {
+                f.circle(dot_x, cy, 2.5, GREEN, a);
+                dot_x -= 7.0;
+            }
+            if mic {
+                f.circle(dot_x, cy, 2.5, ORANGE, a);
+            }
+        }
     }
 
     fn mini_art(&self, f: &mut Frame, x0: f32, a: f32) {
@@ -215,6 +228,18 @@ impl App {
             None => {
                 let day = format!("{} {}", DAYS[now.wDayOfWeek as usize % 7], now.wDay);
                 c.f.text_right(right - 8.0, 29.0, 13.0, false, WHITE, a * SOFT, &day);
+            }
+        }
+
+        let (cam, mic) = self.privacy;
+        if cam || mic {
+            let mut dot_x = x1 - 12.0;
+            if cam {
+                c.f.circle(dot_x, 18.0, 2.5, GREEN, a);
+                dot_x -= 7.0;
+            }
+            if mic {
+                c.f.circle(dot_x, 18.0, 2.5, ORANGE, a);
             }
         }
     }

@@ -228,6 +228,90 @@ pub fn clipboard_text(hwnd: HWND) -> Option<String> {
     }
 }
 
+// ---- Privacy Indicator (Camera & Microphone In-Use) --------------------------------------
+
+fn is_device_in_use(device: &str) -> bool {
+    unsafe {
+        let base_path = format!("Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\{device}");
+        let base_w: Vec<u16> = base_path.encode_utf16().chain([0]).collect();
+        let mut base_key = HKEY::default();
+        if RegOpenKeyExW(HKEY_CURRENT_USER, PCWSTR(base_w.as_ptr()), 0, KEY_READ, &mut base_key).is_err() {
+            return false;
+        }
+
+        let mut in_use = check_key_in_use(base_key);
+        if !in_use {
+            // Also check NonPackaged subkey for Win32 apps
+            let mut non_packaged = HKEY::default();
+            if RegOpenKeyExW(base_key, windows::core::w!("NonPackaged"), 0, KEY_READ, &mut non_packaged).is_ok() {
+                in_use = check_key_in_use(non_packaged);
+                let _ = RegCloseKey(non_packaged);
+            }
+        }
+        let _ = RegCloseKey(base_key);
+        in_use
+    }
+}
+
+unsafe fn check_key_in_use(key: HKEY) -> bool {
+    use windows::core::PWSTR;
+    let mut index = 0;
+    let mut name_buf = [0u16; 256];
+    loop {
+        let mut name_len = name_buf.len() as u32;
+        if RegEnumKeyExW(
+            key,
+            index,
+            PWSTR(name_buf.as_mut_ptr()),
+            &mut name_len,
+            None,
+            PWSTR::null(),
+            None,
+            None,
+        )
+        .is_err()
+        {
+            break;
+        }
+        index += 1;
+        name_buf[name_len as usize] = 0;
+        let sub_name = PCWSTR(name_buf.as_ptr());
+        let mut stop: u64 = 1;
+        let mut start: u64 = 0;
+        let mut size = std::mem::size_of::<u64>() as u32;
+
+        let res_stop = RegGetValueW(
+            key,
+            sub_name,
+            windows::core::w!("LastUsedTimeStop"),
+            RRF_RT_REG_QWORD,
+            None,
+            Some(&mut stop as *mut _ as *mut _),
+            Some(&mut size),
+        );
+        let mut size_start = std::mem::size_of::<u64>() as u32;
+        let res_start = RegGetValueW(
+            key,
+            sub_name,
+            windows::core::w!("LastUsedTimeStart"),
+            RRF_RT_REG_QWORD,
+            None,
+            Some(&mut start as *mut _ as *mut _),
+            Some(&mut size_start),
+        );
+
+        if res_stop.is_ok() && res_start.is_ok() && stop == 0 && start > 0 {
+            return true;
+        }
+    }
+    false
+}
+
+/// Returns (camera_in_use, microphone_in_use)
+pub fn privacy_status() -> (bool, bool) {
+    (is_device_in_use("webcam"), is_device_in_use("microphone"))
+}
+
 // ---- Autostart with Windows --------------------------------------------------------------
 
 const RUN_KEY: PCWSTR = w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run");

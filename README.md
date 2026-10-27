@@ -21,6 +21,7 @@ Produces `target\release\notch.exe`, ready to run directly.
 
 **Closed notch** dynamically updates content based on state: blinking eyes when idle, mini artwork and
 equalizer when music is playing, currently sung lyric line, Focus countdown, task reminders,
+privacy indicators (green dot for camera, orange dot for microphone),
 and brief HUD overlays (volume, Caps Lock, charger, keyboard layout).
 
 **Open notch** (hover mouse over notch) with frosted glass styling:

@@ -227,6 +227,7 @@ struct App {
     alert: bool,
     reminder: Option<String>,
     battery: Option<(bool, u8)>,
+    privacy: (bool, bool), // (camera_in_use, microphone_in_use)
     hover: Option<Action>,
     hits: Vec<(Action, sk::Rect)>,
     press: Option<(Action, f32, f32)>,
@@ -483,6 +484,7 @@ fn main() -> Result<()> {
             alert: false,
             reminder: None,
             battery: system::battery(),
+            privacy: (false, false),
             hover: None,
             hits: Vec::new(),
             press: None,

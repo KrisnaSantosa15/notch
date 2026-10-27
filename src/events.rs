@@ -542,6 +542,12 @@ impl App {
             self.battery = system::battery();
         }
 
+        let privacy = system::privacy_status();
+        if privacy != self.privacy {
+            self.privacy = privacy;
+            dirty = true;
+        }
+
         // keyboard layout changed within the same window (not from switching apps)
         let keyboard = system::keyboard_layout();
         if keyboard.0 == self.keyboard.0 && keyboard.1 != self.keyboard.1 && keyboard.1 != 0 {
