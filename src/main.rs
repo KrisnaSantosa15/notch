@@ -32,6 +32,7 @@ use windows::Win32::System::Console::*;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::SystemInformation::GetLocalTime;
 use windows::Win32::UI::HiDpi::*;
+use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 // All dimensions in dp (1 dp = 1 px at 100% scale).
@@ -45,6 +46,7 @@ const WM_APP_MEDIA: u32 = WM_APP + 1;
 const WM_APP_KEY: u32 = WM_APP + 2;
 const WM_MOUSELEAVE: u32 = 0x02A3; // not exported by WindowsAndMessaging module
 const PBT_APMPOWERSTATUSCHANGE: usize = 0x0A;
+const HOTKEY_TOGGLE: i32 = 100;
 
 const TIMER_ANIM: usize = 1;
 const TIMER_TICK: usize = 2;
@@ -362,7 +364,15 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
         WM_DPICHANGED | WM_DISPLAYCHANGE => {
             with_app(|a| a.relayout());
         }
-        WM_DESTROY => PostQuitMessage(0),
+        WM_HOTKEY => {
+            if wp.0 as i32 == HOTKEY_TOGGLE {
+                with_app(|a| a.toggle_open());
+            }
+        }
+        WM_DESTROY => {
+            let _ = UnregisterHotKey(hwnd, HOTKEY_TOGGLE);
+            PostQuitMessage(0);
+        }
         _ => return DefWindowProcW(hwnd, msg, wp, lp),
     }
     LRESULT(0)
@@ -489,6 +499,7 @@ fn main() -> Result<()> {
         let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE); // glass window appears automatically when the notch opens
         SetTimer(hwnd, TIMER_TICK, 1000, None);
         system::install_key_hook(hwnd, WM_APP_KEY);
+        let _ = RegisterHotKey(hwnd, HOTKEY_TOGGLE, MOD_WIN | MOD_ALT | MOD_NOREPEAT, 'N' as u32);
 
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {

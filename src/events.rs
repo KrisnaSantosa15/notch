@@ -50,6 +50,28 @@ impl App {
         }
     }
 
+    /// Toggle notch between open and closed state (e.g. from hotkey or tray).
+    pub(crate) fn toggle_open(&mut self) {
+        self.open = !self.open;
+        if self.open {
+            self.hovering = true;
+            if self.alert {
+                self.tab = Tab::Focus;
+            }
+            if self.reminder.is_some() {
+                self.tab = Tab::Tasks;
+            }
+            self.alert = false;
+            self.reminder = None;
+        } else {
+            self.hovering = false;
+            self.hover = None;
+            self.press = None;
+            self.stop_editing();
+        }
+        self.retarget();
+    }
+
     /// Recalculate notch target dimensions and start its animation.
     pub(crate) fn retarget(&mut self) {
         let live = self.current_live();

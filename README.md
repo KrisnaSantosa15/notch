@@ -40,6 +40,7 @@ Click any lyric line to jump to that part of the song.
 | Action | Result |
 |---|---|
 | Hover mouse over notch | Opens |
+| Win + Alt + N | Toggle open / close |
 | Scroll over notch | Adjusts volume (in Shelf/Tasks: scrolls list) |
 | Drag files onto notch | Adds to Shelf |
 | Right click | Menu: Start with Windows, Quit |
