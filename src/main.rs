@@ -270,6 +270,31 @@ unsafe extern "system" fn console_ctrl_handler(ctrl_type: u32) -> BOOL {
     BOOL(0)
 }
 
+impl App {
+    pub(crate) fn is_tab_enabled(&self, tab: Tab) -> bool {
+        match tab {
+            Tab::Music => self.config.tabs.media,
+            Tab::Focus => self.config.tabs.focus,
+            Tab::Shelf => self.config.tabs.shelf,
+            Tab::Tasks => self.config.tabs.tasks,
+        }
+    }
+
+    pub(crate) fn first_enabled_tab(&self) -> Tab {
+        if self.config.tabs.media {
+            Tab::Music
+        } else if self.config.tabs.focus {
+            Tab::Focus
+        } else if self.config.tabs.shelf {
+            Tab::Shelf
+        } else if self.config.tabs.tasks {
+            Tab::Tasks
+        } else {
+            Tab::Music
+        }
+    }
+}
+
 fn with_app<R>(f: impl FnOnce(&mut App) -> R) -> Option<R> {
     APP.with(|cell| {
         let mut guard = cell.try_borrow_mut().ok()?;
@@ -282,7 +307,8 @@ fn show_menu(hwnd: HWND) {
     const TOGGLE: usize = 1;
     const AUTOSTART: usize = 2;
     const EDIT_CONFIG: usize = 3;
-    const QUIT: usize = 4;
+    const ABOUT: usize = 4;
+    const QUIT: usize = 5;
     unsafe {
         let Ok(menu) = CreatePopupMenu() else { return };
         let _ = AppendMenuW(menu, MF_STRING, TOGGLE, w!("Toggle Open / Close"));
@@ -290,6 +316,7 @@ fn show_menu(hwnd: HWND) {
         let check = if system::autostart() { MF_CHECKED } else { MF_UNCHECKED };
         let _ = AppendMenuW(menu, MF_STRING | check, AUTOSTART, w!("Start with Windows"));
         let _ = AppendMenuW(menu, MF_STRING, EDIT_CONFIG, w!("Edit config.toml"));
+        let _ = AppendMenuW(menu, MF_STRING, ABOUT, w!("About Notch"));
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
         let _ = AppendMenuW(menu, MF_STRING, QUIT, w!("Quit Notch"));
         let mut pt = POINT::default();
@@ -306,6 +333,11 @@ fn show_menu(hwnd: HWND) {
                 if let Some(path) = config::path() {
                     shelf::open(&path.to_string_lossy());
                 }
+            }
+            ABOUT => {
+                let text = w!("Notch v0.3.0\nCreated by Krisna Santosa\n\nMacBook-like dynamic notch for Windows 10/11.\nLicensed under GNU AGPLv3.");
+                let caption = w!("About Notch");
+                let _ = MessageBoxW(hwnd, text, caption, MB_OK | MB_ICONINFORMATION);
             }
             QUIT => {
                 let _ = DestroyWindow(hwnd);
@@ -458,6 +490,17 @@ fn main() -> Result<()> {
         let saved = store::load();
         let px = (48.0 * GetDpiForWindow(hwnd) as f32 / 96.0) as u32;
         let now = Instant::now();
+        let initial_tab = if cfg.tabs.media {
+            Tab::Music
+        } else if cfg.tabs.focus {
+            Tab::Focus
+        } else if cfg.tabs.shelf {
+            Tab::Shelf
+        } else if cfg.tabs.tasks {
+            Tab::Tasks
+        } else {
+            Tab::Music
+        };
         let app = App {
             hwnd,
             backdrop,
@@ -487,7 +530,7 @@ fn main() -> Result<()> {
             blink: false,
             minute: GetLocalTime().wMinute,
             keyboard: system::keyboard_layout(),
-            tab: Tab::Music,
+            tab: initial_tab,
             focus: Focus::new(saved.preset),
             hud: None,
             alert: false,
@@ -550,7 +593,7 @@ fn main() -> Result<()> {
             szTip: [0; 128],
             ..Default::default()
         };
-        let tip = "Notch\0".encode_utf16().collect::<Vec<u16>>();
+        let tip = "Notch by Krisna Santosa\0".encode_utf16().collect::<Vec<u16>>();
         nid.szTip[..tip.len()].copy_from_slice(&tip);
         let _ = Shell_NotifyIconW(NIM_ADD, &nid);
 

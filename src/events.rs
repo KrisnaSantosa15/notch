@@ -55,10 +55,10 @@ impl App {
         self.open = !self.open;
         if self.open {
             self.hovering = true;
-            if self.alert {
+            if self.alert && self.config.tabs.focus {
                 self.tab = Tab::Focus;
             }
-            if self.reminder.is_some() {
+            if self.reminder.is_some() && self.config.tabs.tasks {
                 self.tab = Tab::Tasks;
             }
             self.alert = false;
@@ -181,10 +181,10 @@ impl App {
         }
         if !self.open && self.config.behavior.hover_to_open {
             self.open = true;
-            if self.alert {
+            if self.alert && self.config.tabs.focus {
                 self.tab = Tab::Focus;
             }
-            if self.reminder.is_some() {
+            if self.reminder.is_some() && self.config.tabs.tasks {
                 self.tab = Tab::Tasks;
             }
             self.alert = false;
@@ -333,7 +333,9 @@ impl App {
     pub(crate) fn on_drag_enter(&mut self) {
         self.drag_in = true;
         self.open = true;
-        self.tab = Tab::Shelf;
+        if self.config.tabs.shelf {
+            self.tab = Tab::Shelf;
+        }
         unsafe {
             let _ = KillTimer(self.hwnd, TIMER_CLOSE);
         }

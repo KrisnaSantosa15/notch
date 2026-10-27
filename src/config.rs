@@ -195,4 +195,20 @@ mod tests {
         assert_eq!(cfg.theme.accent_mode, "album_art");
         assert_eq!(cfg.behavior.auto_close_delay_ms, 260);
     }
+
+    #[test]
+    fn disabled_tabs_can_be_configured() {
+        let toml_str = r#"
+            [tabs]
+            media = false
+            focus = false
+            shelf = true
+            tasks = true
+        "#;
+        let cfg: Config = toml::from_str(toml_str).unwrap();
+        assert!(!cfg.tabs.media);
+        assert!(!cfg.tabs.focus);
+        assert!(cfg.tabs.shelf);
+        assert!(cfg.tabs.tasks);
+    }
 }

@@ -73,6 +73,9 @@ impl App {
             // buttons only become clickable once sufficiently visible
             let hits = if open_a > 0.6 { Some(&mut hits) } else { None };
             let mut c = Ctx { f: &mut f, hits, hover: self.hover, a: open_a };
+            if !self.is_tab_enabled(self.tab) {
+                self.tab = self.first_enabled_tab();
+            }
             self.draw_header(&mut c, x0, x1);
             match self.tab {
                 Tab::Music => self.draw_music(&mut c, x0, x1, cx),
@@ -207,12 +210,19 @@ impl App {
     /// Top header: tabs on the left, battery (or date) and clock on the right.
     fn draw_header(&mut self, c: &mut Ctx, x0: f32, x1: f32) {
         let open_tasks = self.tasks.iter().filter(|t| !t.done).count();
-        let tabs = [
-            (Tab::Music, "Music", 0),
-            (Tab::Focus, "Focus", 0),
-            (Tab::Shelf, "Shelf", self.shelf.len()),
-            (Tab::Tasks, "Tasks", open_tasks),
-        ];
+        let mut tabs = Vec::new();
+        if self.config.tabs.media {
+            tabs.push((Tab::Music, "Music", 0));
+        }
+        if self.config.tabs.focus {
+            tabs.push((Tab::Focus, "Focus", 0));
+        }
+        if self.config.tabs.shelf {
+            tabs.push((Tab::Shelf, "Shelf", self.shelf.len()));
+        }
+        if self.config.tabs.tasks {
+            tabs.push((Tab::Tasks, "Tasks", open_tasks));
+        }
         let mut x = x0 + 22.0;
         for (tab, label, count) in tabs {
             let badge = (count > 0).then(|| count.to_string());
