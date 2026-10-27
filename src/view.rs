@@ -239,6 +239,11 @@ impl App {
             x += c.pill(Action::Tab(tab), x, 12.0, label, badge.as_deref(), self.tab == tab, false) + 4.0;
         }
 
+        if let Some(info) = update::UPDATE_AVAILABLE.read().ok().and_then(|u| u.clone()) {
+            let label = format!("Update {}", info.tag);
+            x += c.pill(Action::OpenUpdate, x, 12.0, &label, None, false, false) + 4.0;
+        }
+
         let a = c.a;
         let now = unsafe { GetLocalTime() };
         let clock = format!("{:02}:{:02}", now.wHour, now.wMinute);

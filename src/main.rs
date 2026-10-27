@@ -20,6 +20,7 @@ mod text;
 mod ui;
 mod view;
 pub(crate) mod config;
+pub(crate) mod update;
 
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicIsize, Ordering};
@@ -45,6 +46,7 @@ const EAR: f32 = 9.0; // "ear" curve blending into the screen edge
 const WM_APP_MEDIA: u32 = WM_APP + 1;
 const WM_APP_KEY: u32 = WM_APP + 2;
 const WM_APP_TRAY: u32 = WM_APP + 3;
+const WM_APP_UPDATE: u32 = WM_APP + 4;
 const WM_MOUSELEAVE: u32 = 0x02A3; // not exported by WindowsAndMessaging module
 const PBT_APMPOWERSTATUSCHANGE: usize = 0x0A;
 const HOTKEY_TOGGLE: i32 = 100;
@@ -88,6 +90,7 @@ enum Action {
     TaskToggle(usize),
     TaskRemove(usize),
     TaskInput,
+    OpenUpdate,
 }
 
 /// Brief HUD message that appears for ~2 seconds then disappears.
@@ -308,7 +311,8 @@ fn show_menu(hwnd: HWND) {
     const AUTOSTART: usize = 2;
     const EDIT_CONFIG: usize = 3;
     const ABOUT: usize = 4;
-    const QUIT: usize = 5;
+    const UPDATE: usize = 5;
+    const QUIT: usize = 6;
     unsafe {
         let Ok(menu) = CreatePopupMenu() else { return };
         let _ = AppendMenuW(menu, MF_STRING, TOGGLE, w!("Toggle Open / Close"));
@@ -316,6 +320,15 @@ fn show_menu(hwnd: HWND) {
         let check = if system::autostart() { MF_CHECKED } else { MF_UNCHECKED };
         let _ = AppendMenuW(menu, MF_STRING | check, AUTOSTART, w!("Start with Windows"));
         let _ = AppendMenuW(menu, MF_STRING, EDIT_CONFIG, w!("Edit config.toml"));
+
+        let update_info = update::UPDATE_AVAILABLE.read().ok().and_then(|u| u.clone());
+        if let Some(ref info) = update_info {
+            let label = format!("Update Available: {} (Download)", info.tag);
+            let label_w: Vec<u16> = label.encode_utf16().chain(std::iter::once(0)).collect();
+            let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
+            let _ = AppendMenuW(menu, MF_STRING, UPDATE, windows::core::PCWSTR(label_w.as_ptr()));
+        }
+
         let _ = AppendMenuW(menu, MF_STRING, ABOUT, w!("About Notch"));
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
         let _ = AppendMenuW(menu, MF_STRING, QUIT, w!("Quit Notch"));
@@ -338,6 +351,11 @@ fn show_menu(hwnd: HWND) {
                 let text = w!("Notch v0.3.0\nCreated by Krisna Santosa\n\nMacBook-like dynamic notch for Windows 10/11.\nLicensed under GNU AGPLv3.");
                 let caption = w!("About Notch");
                 let _ = MessageBoxW(hwnd, text, caption, MB_OK | MB_ICONINFORMATION);
+            }
+            UPDATE => {
+                if let Some(info) = update_info {
+                    shelf::open(&info.url);
+                }
             }
             QUIT => {
                 let _ = DestroyWindow(hwnd);
@@ -399,6 +417,11 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
         }
         WM_APP_MEDIA => {
             with_app(|a| a.on_media());
+        }
+        WM_APP_UPDATE => {
+            with_app(|a| {
+                a.redraw();
+            });
         }
         WM_APP_TRAY => {
             match lp.0 as u32 {
@@ -582,6 +605,11 @@ fn main() -> Result<()> {
         SetTimer(hwnd, TIMER_TICK, 1000, None);
         system::install_key_hook(hwnd, WM_APP_KEY);
         let _ = RegisterHotKey(hwnd, HOTKEY_TOGGLE, MOD_WIN | MOD_ALT | MOD_NOREPEAT, 'N' as u32);
+
+        let update_hwnd = hwnd.0 as isize;
+        update::check_in_background(move |_info| {
+            let _ = PostMessageW(HWND(update_hwnd as _), WM_APP_UPDATE, WPARAM(0), LPARAM(0));
+        });
 
         let mut nid = NOTIFYICONDATAW {
             cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,

@@ -294,6 +294,11 @@ impl App {
                 }
             }
             Action::TaskInput => self.start_editing(),
+            Action::OpenUpdate => {
+                if let Some(info) = update::UPDATE_AVAILABLE.read().ok().and_then(|u| u.clone()) {
+                    shelf::open(&info.url);
+                }
+            }
         }
         self.sync_lyric();
         self.retarget();
