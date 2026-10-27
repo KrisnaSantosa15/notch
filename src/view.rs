@@ -12,14 +12,15 @@ const LYRIC_ROW: f32 = 19.0;
 impl App {
     pub(crate) fn render(&mut self) {
         let s = self.scale;
-        let cx = CANVAS_W / 2.0;
+        let cx = (self.pw as f32 / s) / 2.0;
         let w = self.w.x.max(60.0);
         let h = self.h.x.max(EAR + 6.0);
         let r = self.r.x.clamp(0.0, (h - EAR).min(w / 2.0));
         let (x0, x1) = (cx - w / 2.0, cx + w / 2.0);
 
         // How open the notch is (0..1), used for glass opacity and content cross-fading.
-        let t = ((h - BAR_H) / (OPEN.1 - BAR_H)).clamp(0.0, 1.0);
+        let (open_h, closed_h) = (self.config.notch.open_height, self.config.notch.closed_height);
+        let t = ((h - closed_h) / (open_h - closed_h).max(1.0)).clamp(0.0, 1.0);
         self.update_blur(x0, x1, h, r, t);
 
         let mut pm = sk::Pixmap::new(self.pw, self.ph).unwrap();
@@ -95,7 +96,7 @@ impl App {
 
     /// Single row 32 dp tall: icon on the left, label on the right.
     fn draw_live(&self, f: &mut Frame, x0: f32, x1: f32, cx: f32, a: f32) {
-        let cy = BAR_H / 2.0;
+        let cy = self.config.notch.closed_height / 2.0;
         let (left, right) = (x0 + 22.0, x1 - 16.0);
         match self.live {
             Live::Hud(Hud::Volume(level, muted)) => {

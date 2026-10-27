@@ -19,6 +19,7 @@ mod tasks;
 mod text;
 mod ui;
 mod view;
+pub(crate) mod config;
 
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicIsize, Ordering};
@@ -40,8 +41,6 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 const CANVAS_W: f32 = 580.0; // includes room for shadow
 const CANVAS_H: f32 = 214.0;
 const EAR: f32 = 9.0; // "ear" curve blending into the screen edge
-const BAR_H: f32 = 32.0; // closed notch height
-const OPEN: (f32, f32, f32) = (500.0, 180.0, 36.0); // width, height, radius
 
 const WM_APP_MEDIA: u32 = WM_APP + 1;
 const WM_APP_KEY: u32 = WM_APP + 2;
@@ -251,6 +250,7 @@ struct App {
     caret: bool,
 
     fonts: Option<text::Fonts>,
+    pub(crate) config: config::Config,
 }
 
 thread_local! {
@@ -281,13 +281,15 @@ fn with_app<R>(f: impl FnOnce(&mut App) -> R) -> Option<R> {
 fn show_menu(hwnd: HWND) {
     const TOGGLE: usize = 1;
     const AUTOSTART: usize = 2;
-    const QUIT: usize = 3;
+    const EDIT_CONFIG: usize = 3;
+    const QUIT: usize = 4;
     unsafe {
         let Ok(menu) = CreatePopupMenu() else { return };
         let _ = AppendMenuW(menu, MF_STRING, TOGGLE, w!("Toggle Open / Close"));
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
         let check = if system::autostart() { MF_CHECKED } else { MF_UNCHECKED };
         let _ = AppendMenuW(menu, MF_STRING | check, AUTOSTART, w!("Start with Windows"));
+        let _ = AppendMenuW(menu, MF_STRING, EDIT_CONFIG, w!("Edit config.toml"));
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
         let _ = AppendMenuW(menu, MF_STRING, QUIT, w!("Quit Notch"));
         let mut pt = POINT::default();
@@ -300,6 +302,11 @@ fn show_menu(hwnd: HWND) {
                 with_app(|a| a.toggle_open());
             }
             AUTOSTART => system::set_autostart(!system::autostart()),
+            EDIT_CONFIG => {
+                if let Some(path) = config::path() {
+                    shelf::open(&path.to_string_lossy());
+                }
+            }
             QUIT => {
                 let _ = DestroyWindow(hwnd);
             }
@@ -447,6 +454,7 @@ fn main() -> Result<()> {
         let _ = SetConsoleCtrlHandler(Some(console_ctrl_handler), true);
 
         shelf::register(hwnd); // also initializes COM for thumbnails and volume
+        let cfg = config::load();
         let saved = store::load();
         let px = (48.0 * GetDpiForWindow(hwnd) as f32 / 96.0) as u32;
         let now = Instant::now();
@@ -462,9 +470,9 @@ fn main() -> Result<()> {
             old_bmp: HGDIOBJ::default(),
             bits: std::ptr::null_mut(),
             blur_shape: None,
-            w: Spring::new(150.0),
-            h: Spring::new(BAR_H),
-            r: Spring::new(12.0),
+            w: Spring::new(cfg.notch.closed_width),
+            h: Spring::new(cfg.notch.closed_height),
+            r: Spring::new(cfg.notch.corner_radius),
             scroll: Spring::new(0.0),
             open: false,
             hovering: false,
@@ -505,6 +513,7 @@ fn main() -> Result<()> {
             draft: String::new(),
             caret: true,
             fonts: Some(text::Fonts::load()),
+            config: cfg,
         };
         APP.with(|cell| *cell.borrow_mut() = Some(app));
         with_app(|a| a.relayout());

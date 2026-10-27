@@ -46,7 +46,7 @@ impl App {
                 let w = self.fonts.as_mut().map_or(0.0, |f| f.measure(&text, 13.0 * s, true) / s);
                 (w + 108.0).clamp(236.0, 470.0)
             }
-            Live::Idle => 150.0,
+            Live::Idle => self.config.notch.closed_width,
         }
     }
 
@@ -79,7 +79,11 @@ impl App {
             self.live_since = Instant::now(); // new content fades in
         }
         self.live = live;
-        let (w, h, r) = if self.open { OPEN } else { (self.live_width(live), BAR_H, 12.0) };
+        let (w, h, r) = if self.open {
+            (self.config.notch.open_width, self.config.notch.open_height, self.config.notch.open_radius)
+        } else {
+            (self.live_width(live), self.config.notch.closed_height, self.config.notch.corner_radius)
+        };
         self.w.to = w;
         self.h.to = h;
         self.r.to = r;
@@ -175,7 +179,7 @@ impl App {
                 let _ = TrackMouseEvent(&mut tme);
             }
         }
-        if !self.open {
+        if !self.open && self.config.behavior.hover_to_open {
             self.open = true;
             if self.alert {
                 self.tab = Tab::Focus;
@@ -208,7 +212,7 @@ impl App {
         self.hover = None;
         self.press = None;
         // small delay so the notch doesn't flicker when the mouse grazes the edge
-        unsafe { SetTimer(self.hwnd, TIMER_CLOSE, 260, None) };
+        unsafe { SetTimer(self.hwnd, TIMER_CLOSE, self.config.behavior.auto_close_delay_ms, None) };
         self.redraw();
     }
 
@@ -368,7 +372,7 @@ impl App {
 
     fn schedule_close(&self, ms: u32) {
         if !self.hovering {
-            unsafe { SetTimer(self.hwnd, TIMER_CLOSE, ms, None) };
+            unsafe { SetTimer(self.hwnd, TIMER_CLOSE, ms.max(self.config.behavior.auto_close_delay_ms), None) };
         }
     }
 
@@ -645,8 +649,10 @@ impl App {
     pub(crate) fn relayout(&mut self) {
         unsafe {
             self.scale = GetDpiForWindow(self.hwnd) as f32 / 96.0;
-            self.pw = (CANVAS_W * self.scale).ceil() as u32;
-            self.ph = (CANVAS_H * self.scale).ceil() as u32;
+            let canvas_w = (self.config.notch.open_width + 80.0).max(CANVAS_W);
+            let canvas_h = (self.config.notch.open_height + 40.0).max(CANVAS_H);
+            self.pw = (canvas_w * self.scale).ceil() as u32;
+            self.ph = (canvas_h * self.scale).ceil() as u32;
 
             if !self.bmp.is_invalid() {
                 SelectObject(self.mem_dc, self.old_bmp);
