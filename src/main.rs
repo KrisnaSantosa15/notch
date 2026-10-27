@@ -21,12 +21,14 @@ mod ui;
 mod view;
 
 use std::cell::RefCell;
+use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tiny_skia as sk;
 use windows::core::{w, Result};
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Gdi::*;
+use windows::Win32::System::Console::*;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::SystemInformation::GetLocalTime;
 use windows::Win32::UI::HiDpi::*;
@@ -249,6 +251,19 @@ thread_local! {
     static APP: RefCell<Option<App>> = const { RefCell::new(None) };
 }
 
+static MAIN_HWND: AtomicIsize = AtomicIsize::new(0);
+
+unsafe extern "system" fn console_ctrl_handler(ctrl_type: u32) -> BOOL {
+    if ctrl_type == CTRL_C_EVENT || ctrl_type == CTRL_BREAK_EVENT || ctrl_type == CTRL_CLOSE_EVENT {
+        let hwnd = HWND(MAIN_HWND.load(Ordering::Relaxed) as _);
+        if !hwnd.0.is_null() {
+            let _ = PostMessageW(hwnd, WM_DESTROY, WPARAM(0), LPARAM(0));
+            return BOOL(1);
+        }
+    }
+    BOOL(0)
+}
+
 fn with_app<R>(f: impl FnOnce(&mut App) -> R) -> Option<R> {
     APP.with(|cell| {
         let mut guard = cell.try_borrow_mut().ok()?;
@@ -390,6 +405,8 @@ fn main() -> Result<()> {
         });
         // owned by the backdrop window, so it always stays right above it
         let hwnd = CreateWindowExW(ex | WS_EX_LAYERED, class, w!("Notch"), WS_POPUP, 0, 0, 1, 1, backdrop, None, instance, None)?;
+        MAIN_HWND.store(hwnd.0 as isize, Ordering::Relaxed);
+        let _ = SetConsoleCtrlHandler(Some(console_ctrl_handler), true);
 
         shelf::register(hwnd); // also initializes COM for thumbnails and volume
         let saved = store::load();
