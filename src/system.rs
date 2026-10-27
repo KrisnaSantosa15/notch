@@ -3,6 +3,7 @@
 use std::sync::atomic::{AtomicIsize, Ordering};
 use windows::core::{w, PCWSTR};
 use windows::Win32::Foundation::*;
+use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
 use windows::Win32::Media::Audio::{eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator};
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
@@ -73,11 +74,21 @@ pub fn fullscreen() -> bool {
         if GetWindowRect(fg, &mut r).is_err() {
             return false;
         }
-        let sw = GetSystemMetrics(SM_CXSCREEN);
-        let sh = GetSystemMetrics(SM_CYSCREEN);
+        let hmon = MonitorFromWindow(fg, MONITOR_DEFAULTTONULL);
+        if hmon.0.is_null() {
+            return false;
+        }
+        let mut minfo = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        if !GetMonitorInfoW(hmon, &mut minfo).as_bool() {
+            return false;
+        }
+        let mr = minfo.rcMonitor;
         let style = GetWindowLongW(fg, GWL_STYLE) as u32;
         let has_caption = style & WS_CAPTION.0 == WS_CAPTION.0;
-        r.left <= 0 && r.top <= 0 && r.right >= sw && r.bottom >= sh && !has_caption
+        r.left <= mr.left && r.top <= mr.top && r.right >= mr.right && r.bottom >= mr.bottom && !has_caption
     }
 }
 

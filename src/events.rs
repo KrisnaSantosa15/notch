@@ -669,8 +669,21 @@ impl App {
             self.bits = bits as *mut u8;
             self.old_bmp = SelectObject(self.mem_dc, self.bmp);
 
-            let screen_w = GetSystemMetrics(SM_CXSCREEN);
-            self.pos = POINT { x: (screen_w - self.pw as i32) / 2, y: 0 };
+            let hmon = MonitorFromWindow(self.hwnd, MONITOR_DEFAULTTOPRIMARY);
+            let mut minfo = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            if GetMonitorInfoW(hmon, &mut minfo).as_bool() {
+                let mon_w = minfo.rcMonitor.right - minfo.rcMonitor.left;
+                self.pos = POINT {
+                    x: minfo.rcMonitor.left + (mon_w - self.pw as i32) / 2,
+                    y: minfo.rcMonitor.top,
+                };
+            } else {
+                let screen_w = GetSystemMetrics(SM_CXSCREEN);
+                self.pos = POINT { x: (screen_w - self.pw as i32) / 2, y: 0 };
+            }
         }
         self.blur_shape = None;
         system::set_blur_shape(self.backdrop, None);
