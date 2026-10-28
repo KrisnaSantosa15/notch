@@ -4,9 +4,16 @@ use fontdue::{Font, FontSettings, Metrics};
 use std::collections::HashMap;
 use tiny_skia::{Mask, Pixmap};
 
+/// Tried in order for characters Segoe UI lacks (symbols, CJK, Korean, Thai, emoji).
+/// Loaded lazily: these files are large and most users never need them.
+const FALLBACKS: [&str; 5] = ["seguisym.ttf", "msyh.ttc", "malgun.ttf", "leelawui.ttf", "seguiemj.ttf"];
+
 pub struct Fonts {
     regular: Font,
     bold: Font,
+    dir: String,
+    /// None = not loaded yet, Some(None) = missing on this system
+    fallback: Vec<Option<Option<Font>>>,
     cache: HashMap<(char, u32, bool), (Metrics, Vec<u8>)>,
 }
 
@@ -23,15 +30,43 @@ impl Fonts {
         Fonts {
             regular: load(&["segoeui.ttf", "arial.ttf"]),
             bold: load(&["seguisb.ttf", "segoeuib.ttf", "arialbd.ttf"]),
+            fallback: FALLBACKS.iter().map(|_| None).collect(),
+            dir,
             cache: HashMap::new(),
         }
     }
 
     fn glyph(&mut self, c: char, px: f32, bold: bool) -> &(Metrics, Vec<u8>) {
-        let font = if bold { &self.bold } else { &self.regular };
-        self.cache
-            .entry((c, (px * 4.0).round() as u32, bold))
-            .or_insert_with(|| font.rasterize(c, px))
+        let key = (c, (px * 4.0).round() as u32, bold);
+        if !self.cache.contains_key(&key) {
+            let primary = if bold { &self.bold } else { &self.regular };
+            let glyph = if primary.lookup_glyph_index(c) != 0 || c.is_whitespace() {
+                primary.rasterize(c, px)
+            } else {
+                let i = self.fallback_for(c);
+                let primary = if bold { &self.bold } else { &self.regular };
+                match i.and_then(|i| self.fallback[i].as_ref()?.as_ref()) {
+                    Some(font) => font.rasterize(c, px),
+                    None => primary.rasterize(c, px),
+                }
+            };
+            self.cache.insert(key, glyph);
+        }
+        &self.cache[&key]
+    }
+
+    /// Index of the first fallback font that has `c`, loading fonts on demand.
+    fn fallback_for(&mut self, c: char) -> Option<usize> {
+        for (i, name) in FALLBACKS.iter().enumerate() {
+            let slot = self.fallback[i].get_or_insert_with(|| {
+                let bytes = std::fs::read(format!("{}{name}", self.dir)).ok()?;
+                Font::from_bytes(bytes, FontSettings::default()).ok()
+            });
+            if slot.as_ref().is_some_and(|f| f.lookup_glyph_index(c) != 0) {
+                return Some(i);
+            }
+        }
+        None
     }
 
     pub fn measure(&mut self, text: &str, px: f32, bold: bool) -> f32 {
@@ -106,5 +141,17 @@ impl Fonts {
             }
             pen += m.advance_width;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn falls_back_for_missing_glyphs() {
+        let mut fonts = Fonts::load();
+        assert!(fonts.regular.lookup_glyph_index('あ') == 0);
+        assert!(fonts.fallback_for('あ').is_some());
     }
 }
