@@ -93,6 +93,32 @@ impl App {
                     hits.push((Action::Tab(Tab::Music), rect));
                 }
             }
+
+            // Bottom-rim ambient progress line for active Pomodoro or Media
+            let progress = if self.focus.running() {
+                Some(self.focus.progress())
+            } else if self.info.playing && self.info.duration > 0.0 {
+                Some(((self.info.position / self.info.duration) as f32).clamp(0.0, 1.0))
+            } else {
+                None
+            };
+            if let Some(p) = progress {
+                let track_x0 = x0 + 16.0;
+                let track_x1 = x1 - 16.0;
+                let track_w = (track_x1 - track_x0).max(10.0);
+                let track_y = h - 2.5;
+                let bar_w = track_w * p.clamp(0.0, 1.0);
+                let accent = self.accent();
+
+                // Subtle track guide
+                f.fill(rrect(track_x0, track_y, track_w, 1.8, 1.0), WHITE, 0.10 * closed_a);
+
+                // Luminous progress indicator
+                if bar_w > 1.0 {
+                    f.fill(rrect(track_x0, track_y - 0.5, bar_w, 2.8, 1.4), accent, 0.35 * closed_a);
+                    f.fill(rrect(track_x0, track_y, bar_w, 1.8, 1.0), accent, 0.90 * closed_a);
+                }
+            }
         }
         if open_a > 0.0 {
             // buttons only become clickable once sufficiently visible
