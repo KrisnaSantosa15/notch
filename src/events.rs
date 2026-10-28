@@ -69,7 +69,7 @@ impl App {
     pub(crate) fn toggle_open(&mut self) {
         self.open = !self.open;
         if self.open {
-            self.hovering = true;
+            // hovering stays false so the next mouse move arms WM_MOUSELEAVE and the notch can auto-close
             if self.alert && self.config.tabs.focus {
                 self.tab = Tab::Focus;
             }
