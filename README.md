@@ -21,11 +21,11 @@
 ## Demo
 
 <p align="center">
-  <a href="assets/notch-launch.mp4">
+  <a href="https://youtu.be/evf-Ct_pw5A" target="_blank">
     <img src="assets/notch-demo.webp" alt="Notch morphing through Music, Lyrics, Focus, Shelf and Tasks" width="100%" />
   </a>
   <br>
-  <sub>Click to watch the full 22-second launch film (1080p, with sound).</sub>
+  <sub>Click to watch the full 22-second launch film on YouTube (1080p, with sound).</sub>
 </p>
 
 ## Features
