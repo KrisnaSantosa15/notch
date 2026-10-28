@@ -98,8 +98,6 @@ enum Action {
     SettingsToggleHover,
     SettingsToggleAutostart,
     SettingsToggleTab(usize),
-    SettingsAdjustWidth(i32),
-    SettingsAdjustHeight(i32),
     SettingsOpenConfig,
 }
 
