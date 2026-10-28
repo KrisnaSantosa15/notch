@@ -523,7 +523,9 @@ impl App {
         unsafe {
             let _ = KillTimer(self.hwnd, TIMER_CLOSE);
         }
+        self.play_sound(system::Sound::Pop);
         self.retarget();
+        self.start_animation();
     }
 
     pub(crate) fn on_drag_leave(&mut self) {

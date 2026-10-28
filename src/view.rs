@@ -650,12 +650,29 @@ impl App {
         if self.shelf.is_empty() || self.drag_in {
             let active = self.drag_in;
             let zone = rrect(x0 + 24.0, 48.0, x1 - x0 - 48.0, 112.0, 18.0);
-            c.f.fill(zone.clone(), WHITE, if active { 0.10 } else { 0.04 } * a);
-            c.f.dashed(zone, 1.4, WHITE, if active { 0.75 } else { 0.28 } * a);
-            c.f.icon(Icon::Tray, cx, 84.0, 24.0, WHITE, if active { 1.0 } else { 0.8 } * a);
-            let title = if active { "Release to add" } else { "Drop files here" };
-            c.f.text_center(cx, 124.0, 13.0, true, WHITE, a, title);
-            c.f.text_center(cx, 143.0, 11.0, false, WHITE, a * SOFT, "Files stay where they are. Drag them out anytime.");
+            let accent = self.accent();
+
+            if active {
+                // AirDrop-style magnetic suction ripples
+                let t = self.started.elapsed().as_secs_f32();
+                for i in 0..3 {
+                    let wave = (t * 3.2 + i as f32 * 0.33).fract();
+                    let r = 24.0 + wave * 34.0;
+                    let wave_a = (1.0 - wave) * 0.35;
+                    c.f.circle(cx, 84.0, r, accent, wave_a * a);
+                }
+                c.f.fill(zone.clone(), accent, 0.12 * a);
+                c.f.stroke(zone, 1.8, accent, 0.70 * a);
+                c.f.icon(Icon::Tray, cx, 84.0, 26.0, accent, a);
+                c.f.text_center(cx, 124.0, 13.5, true, WHITE, a, "Release to add to Shelf");
+                c.f.text_center(cx, 143.0, 11.0, false, accent, 0.85 * a, "Drop anywhere to store");
+            } else {
+                c.f.fill(zone.clone(), WHITE, 0.04 * a);
+                c.f.dashed(zone, 1.4, WHITE, 0.28 * a);
+                c.f.icon(Icon::Tray, cx, 84.0, 24.0, WHITE, 0.8 * a);
+                c.f.text_center(cx, 124.0, 13.0, true, WHITE, a, "Drop files here");
+                c.f.text_center(cx, 143.0, 11.0, false, WHITE, a * SOFT, "Files stay where they are. Drag them out anytime.");
+            }
             return;
         }
 
