@@ -152,9 +152,11 @@ impl App {
         (self.live_since.elapsed().as_secs_f32() / 0.22).min(1.0)
     }
 
-    /// The reminder bell keeps swinging for a moment after it appears.
-    fn bell_ringing(&self) -> bool {
-        self.live == Live::Reminder && self.live_since.elapsed().as_secs_f32() < 1.2
+    /// Motion that outlives the springs: drag-in ripples, the ringing reminder bell, the task bell popping in.
+    fn still_moving(&self) -> bool {
+        let ringing = self.live == Live::Reminder && self.live_since.elapsed().as_secs_f32() < 1.2;
+        let popping = self.draft_time_since.is_some_and(|t| t.elapsed().as_secs_f32() < 0.35);
+        self.drag_in || ringing || popping
     }
 
     fn animate(&mut self) {
@@ -171,7 +173,7 @@ impl App {
             self.scroll.step(dt / steps, 0.92);
         }
         let springs = [self.w, self.h, self.r, self.scroll];
-        if springs.iter().all(Spring::done) && self.content_alpha() >= 1.0 && !self.drag_in && !self.bell_ringing() {
+        if springs.iter().all(Spring::done) && self.content_alpha() >= 1.0 && !self.still_moving() {
             for s in [&mut self.w, &mut self.h, &mut self.r, &mut self.scroll] {
                 s.snap();
             }
@@ -296,7 +298,7 @@ impl App {
         if pressed.map(|p| p.0) != Some(action) {
             return; // button was pressed in one spot and released in another
         }
-        if action != Action::TaskInput {
+        if !matches!(action, Action::TaskInput | Action::TaskSubmit) {
             self.stop_editing();
         }
         match action {
@@ -387,6 +389,7 @@ impl App {
                 }
             }
             Action::TaskInput => self.start_editing(),
+            Action::TaskSubmit => self.on_char(0x0D),
             Action::OpenUpdate => {
                 if let Some(info) = update::UPDATE_AVAILABLE.read().ok().and_then(|u| u.clone()) {
                     shelf::open(&info.url);
@@ -630,6 +633,13 @@ impl App {
             _ => {}
         }
         self.draft = self.draft.chars().take(120).collect();
+        let has_time = tasks::Task::parse(&self.draft).is_some_and(|t| t.due.is_some());
+        if has_time != self.draft_time_since.is_some() {
+            self.draft_time_since = has_time.then(Instant::now);
+            if has_time {
+                self.start_animation();
+            }
+        }
         self.caret = true;
         unsafe { SetTimer(self.hwnd, TIMER_CARET, 530, None) };
         self.redraw();

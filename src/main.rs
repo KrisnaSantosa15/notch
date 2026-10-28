@@ -91,6 +91,7 @@ enum Action {
     TaskToggle(usize),
     TaskRemove(usize),
     TaskInput,
+    TaskSubmit,
     OpenUpdate,
     SettingsAccent(usize),
     SettingsToggleSound,
@@ -263,6 +264,8 @@ struct App {
     task_scroll: usize,
     editing: bool,
     draft: String,
+    /// When the draft started ending with a time (drives the bell pop-in).
+    draft_time_since: Option<Instant>,
     caret: bool,
 
     fonts: Option<text::Fonts>,
@@ -618,6 +621,7 @@ fn main() -> Result<()> {
             task_scroll: 0,
             editing: false,
             draft: String::new(),
+            draft_time_since: None,
             caret: true,
             fonts: Some(text::Fonts::load()),
             config: cfg,

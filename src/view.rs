@@ -831,12 +831,23 @@ impl App {
             0.06
         };
         c.f.fill(rrect(fx, fy, fw, 26.0, 13.0), WHITE, bg * a);
+        let accent = self.accent();
         if self.editing {
-            c.f.stroke(rrect(fx, fy, fw, 26.0, 13.0), 1.0, WHITE, 0.35 * a);
+            c.f.stroke(rrect(fx, fy, fw, 26.0, 13.0), 1.0, accent, 0.55 * a);
         }
-        c.f.icon(Icon::Plus, fx + 14.0, fy + 13.0, 10.0, WHITE, a * SOFT);
+        // once the draft ends with a time it becomes a reminder: the + turns into a bell that pops in
+        let parsed = tasks::Task::parse(&self.draft);
+        match self.draft_time_since.filter(|_| parsed.as_ref().is_some_and(|t| t.due.is_some())) {
+            Some(since) => {
+                let x = (since.elapsed().as_secs_f32() / 0.3).min(1.0) - 1.0;
+                let pop = 1.0 + 2.7 * x * x * x + 1.7 * x * x; // ease-out-back
+                c.f.bell(fx + 14.0, fy + 13.0, 13.0 * pop, 0.0, accent, a);
+            }
+            None => c.f.icon(Icon::Plus, fx + 14.0, fy + 13.0, 10.0, WHITE, a * SOFT),
+        }
+        let submit = self.editing && parsed.is_some();
         let text_x = fx + 28.0;
-        let max_w = fw - 44.0;
+        let max_w = fw - 44.0 - if submit { 20.0 } else { 0.0 };
         if self.draft.is_empty() {
             let hint = if self.editing { "Type and press Enter" } else { "Add a task… try “Stand-up 09:30”" };
             c.f.text(text_x, fy + 17.5, 12.0, false, WHITE, a * SOFT * 0.85, hint);
@@ -846,7 +857,31 @@ impl App {
             while c.f.width(&shown, 12.0, false) > max_w && !shown.is_empty() {
                 shown.remove(0);
             }
-            c.f.text(text_x, fy + 17.5, 12.0, false, WHITE, a, &shown);
+            // the recognised time is tinted with the accent
+            let trimmed = self.draft.trim_end();
+            let time_at = match &parsed {
+                Some(t) if t.due.is_some() => trimmed.rfind(char::is_whitespace).map_or(0, |i| i + 1),
+                _ => self.draft.len(),
+            };
+            let split = time_at.saturating_sub(self.draft.len() - shown.len());
+            let (head, time) = shown.split_at(split);
+            c.f.text(text_x, fy + 17.5, 12.0, false, WHITE, a, head);
+            let head_w = c.f.width(head, 12.0, false);
+            c.f.text(text_x + head_w, fy + 17.5, 12.0, false, accent, a, time);
+        }
+        if submit {
+            // return button, same as pressing Enter
+            let (bx, by) = (fx + fw - 15.0, fy + 13.0);
+            c.f.circle(bx, by, 9.0, accent, a);
+            let mut pb = sk::PathBuilder::new();
+            pb.move_to(bx + 3.2, by - 3.4);
+            pb.line_to(bx + 3.2, by + 1.2);
+            pb.line_to(bx - 3.4, by + 1.2);
+            pb.move_to(bx - 1.2, by - 1.1);
+            pb.line_to(bx - 3.5, by + 1.2);
+            pb.line_to(bx - 1.2, by + 3.5);
+            c.f.stroke(pb.finish(), 1.5, BLACK, 0.85 * a);
+            c.hit(Action::TaskSubmit, bx - 11.0, fy, 22.0, 26.0);
         }
         if self.editing && self.caret {
             let shown_w = c.f.width(&self.draft, 12.0, false).min(max_w);
