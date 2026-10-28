@@ -82,7 +82,8 @@ pub fn fullscreen(ignore1: HWND, ignore2: HWND) -> bool {
             return false;
         }
         let hmon = MonitorFromWindow(fg, MONITOR_DEFAULTTONULL);
-        if hmon.0.is_null() {
+        // only a fullscreen app on the notch's own monitor should hide it
+        if hmon.0.is_null() || hmon != MonitorFromWindow(ignore1, MONITOR_DEFAULTTOPRIMARY) {
             return false;
         }
         let mut minfo = MONITORINFO {
