@@ -243,6 +243,7 @@ struct App {
     stats: (u8, u8),       // (cpu_percent, ram_percent)
     caps: bool,
     hover: Option<Action>,
+    mouse_pos: Option<(f32, f32)>,
     hits: Vec<(Action, sk::Rect)>,
     press: Option<(Action, f32, f32)>,
 
@@ -583,6 +584,7 @@ fn main() -> Result<()> {
             stats: (0, system::ram_usage()),
             caps: system::caps_lock(),
             hover: None,
+            mouse_pos: None,
             hits: Vec::new(),
             press: None,
             media: media::start(hwnd.0 as isize, WM_APP_MEDIA, saved.lyrics),

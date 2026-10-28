@@ -73,9 +73,33 @@ impl App {
 
         let mut fonts = self.fonts.take().unwrap();
         let mut f = Frame { pm, mask, s, fonts: &mut fonts };
-        // thin reflective border highlight, characteristic of glass
+        // Specular glass rim highlight: ambient reflection + dynamic cursor glint
         if t > 0.0 {
-            f.stroke(Some(shape.clone()), 1.4, WHITE, 0.13 * t);
+            f.stroke(Some(shape.clone()), 1.2, WHITE, 0.11 * t);
+
+            if let Some((mx, _my)) = self.mouse_pos {
+                let glint_w = 95.0;
+                let gx0 = (mx - glint_w).max(x0 - EAR);
+                let gx1 = (mx + glint_w).min(x1 + EAR);
+                if gx1 > gx0 {
+                    let grad = sk::LinearGradient::new(
+                        sk::Point::from_xy(gx0, 0.0),
+                        sk::Point::from_xy(gx1, 0.0),
+                        vec![
+                            sk::GradientStop::new(0.0, sk::Color::from_rgba8(255, 255, 255, 0)),
+                            sk::GradientStop::new(0.5, sk::Color::from_rgba8(255, 255, 255, (0.32 * t * 255.0) as u8)),
+                            sk::GradientStop::new(1.0, sk::Color::from_rgba8(255, 255, 255, 0)),
+                        ],
+                        sk::SpreadMode::Pad,
+                        sk::Transform::identity(),
+                    );
+                    if let Some(shader) = grad {
+                        let stroke_paint = sk::Paint { shader, anti_alias: true, ..Default::default() };
+                        let stroke_style = sk::Stroke { width: 1.6, ..Default::default() };
+                        f.pm.stroke_path(&shape, &stroke_paint, &stroke_style, ts, None);
+                    }
+                }
+            }
         }
 
         let mut hits = Vec::new();

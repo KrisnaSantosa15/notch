@@ -234,6 +234,14 @@ impl App {
             }
         }
 
+        let moved = self.mouse_pos.map_or(true, |(px, py)| (px - x).hypot(py - y) > 3.0);
+        if moved {
+            self.mouse_pos = Some((x, y));
+            if self.open {
+                self.redraw();
+            }
+        }
+
         let hover = self.hit_rect(x, y).map(|(a, _)| a);
         if hover != self.hover {
             self.hover = hover;
@@ -244,6 +252,7 @@ impl App {
 
     pub(crate) fn on_mouse_leave(&mut self) {
         self.hovering = false;
+        self.mouse_pos = None;
         self.hover = None;
         self.press = None;
         if !self.open {
