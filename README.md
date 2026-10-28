@@ -28,6 +28,10 @@
   <sub>Click to watch the full 22-second launch film on YouTube (1080p, with sound).</sub>
 </p>
 
+| Music with Lyrics | Settings |
+| :---: | :---: |
+| ![Music with Lyrics](promo/images/music-with-lyrics.png) | ![Settings](promo/images/settings.png) |
+
 ## Features
 
 - **Dynamic Island (Closed Notch)**:
