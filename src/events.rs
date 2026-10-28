@@ -39,12 +39,18 @@ impl App {
             Live::Hud(_) => 300.0,
             Live::Alert => 270.0,
             Live::Reminder => 340.0,
-            Live::Timer | Live::Media => 236.0,
-            Live::Lyric => {
-                let text = self.lyric_text().unwrap_or("").to_string();
-                let s = self.scale;
-                let w = self.fonts.as_mut().map_or(0.0, |f| f.measure(&text, 13.0 * s, true) / s);
-                (w + 108.0).clamp(236.0, 470.0)
+            Live::Timer => 236.0,
+            Live::Media | Live::Lyric => {
+                if self.hovering && !self.open && self.info.has_session {
+                    330.0
+                } else if live == Live::Lyric {
+                    let text = self.lyric_text().unwrap_or("").to_string();
+                    let s = self.scale;
+                    let w = self.fonts.as_mut().map_or(0.0, |f| f.measure(&text, 13.0 * s, true) / s);
+                    (w + 108.0).clamp(236.0, 470.0)
+                } else {
+                    236.0
+                }
             }
             Live::Idle => self.config.notch.closed_width,
         }
@@ -197,16 +203,20 @@ impl App {
             }
         }
         if !self.open && self.config.behavior.hover_to_open {
-            self.open = true;
-            if self.alert && self.config.tabs.focus {
-                self.tab = Tab::Focus;
+            if self.info.has_session {
+                self.retarget();
+            } else {
+                self.open = true;
+                if self.alert && self.config.tabs.focus {
+                    self.tab = Tab::Focus;
+                }
+                if self.reminder.is_some() && self.config.tabs.tasks {
+                    self.tab = Tab::Tasks;
+                }
+                self.alert = false;
+                self.reminder = None;
+                self.retarget();
             }
-            if self.reminder.is_some() && self.config.tabs.tasks {
-                self.tab = Tab::Tasks;
-            }
-            self.alert = false;
-            self.reminder = None;
-            self.retarget();
         }
 
         if let (true, Some((Action::ShelfItem(i), px, py))) = (left_down, self.press) {
@@ -228,6 +238,9 @@ impl App {
         self.hovering = false;
         self.hover = None;
         self.press = None;
+        if !self.open {
+            self.retarget();
+        }
         // small delay so the notch doesn't flicker when the mouse grazes the edge
         unsafe { SetTimer(self.hwnd, TIMER_CLOSE, self.config.behavior.auto_close_delay_ms, None) };
         self.redraw();
@@ -242,6 +255,14 @@ impl App {
         let (x, y) = (x / self.scale, y / self.scale);
         let pressed = self.press.take();
         let Some((action, rect)) = self.hit_rect(x, y) else {
+            if !self.open {
+                self.open = true;
+                self.hovering = true;
+                if self.info.has_session && self.config.tabs.media {
+                    self.tab = Tab::Music;
+                }
+                self.retarget();
+            }
             self.stop_editing();
             return;
         };
@@ -255,6 +276,10 @@ impl App {
             Action::Tab(tab) => {
                 self.play_sound(system::Sound::Pop);
                 self.tab = tab;
+                if !self.open {
+                    self.open = true;
+                    self.hovering = true;
+                }
             }
             Action::Prev => self.media.send(media::Cmd::Prev),
             Action::Next => self.media.send(media::Cmd::Next),

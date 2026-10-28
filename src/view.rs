@@ -67,7 +67,7 @@ impl App {
 
         let mut hits = Vec::new();
         if closed_a > 0.0 {
-            self.draw_live(&mut f, x0, x1, cx, closed_a);
+            self.draw_live(&mut f, &mut hits, x0, x1, cx, closed_a);
         }
         if open_a > 0.0 {
             // buttons only become clickable once sufficiently visible
@@ -102,7 +102,7 @@ impl App {
     // ---- Closed notch -----------------------------------------------------------------------
 
     /// Single row 32 dp tall: icon on the left, label on the right.
-    fn draw_live(&self, f: &mut Frame, x0: f32, x1: f32, cx: f32, a: f32) {
+    fn draw_live(&self, f: &mut Frame, hits: &mut Vec<(Action, sk::Rect)>, x0: f32, x1: f32, cx: f32, a: f32) {
         let cy = self.config.notch.closed_height / 2.0;
         let (left, right) = (x0 + 22.0, x1 - 16.0);
         match self.live {
@@ -150,15 +150,60 @@ impl App {
                 f.ring(left, cy, 7.5, 2.4, self.focus.progress(), ORANGE, a);
                 f.text_right(right, 21.0, 13.0, true, ORANGE, a, &mmss(self.focus.remaining().ceil()));
             }
-            Live::Lyric => {
+            Live::Media | Live::Lyric => {
                 self.mini_art(f, x0, a);
-                let text = f.fit(self.lyric_text().unwrap_or(""), 13.0, true, x1 - x0 - 108.0);
-                f.text_center(cx, 21.0, 13.0, true, WHITE, a, &text);
-                self.draw_equalizer(f, right, cy, a);
-            }
-            Live::Media => {
-                self.mini_art(f, x0, a);
-                self.draw_equalizer(f, right, cy, a);
+                if let Some(r) = sk::Rect::from_xywh(x0, 0.0, 42.0, self.config.notch.closed_height) {
+                    hits.push((Action::Tab(Tab::Music), r));
+                }
+
+                if self.hovering && self.info.has_session {
+                    let avail_w = (x1 - x0 - 130.0).max(40.0);
+                    let title = if self.info.title.is_empty() {
+                        "Playing Media"
+                    } else {
+                        &self.info.title
+                    };
+                    let fit_title = f.fit(title, 11.5, true, avail_w);
+                    f.text(x0 + 40.0, 20.5, 11.5, true, WHITE, a, &fit_title);
+                    if let Some(r) = sk::Rect::from_xywh(x0 + 40.0, 0.0, avail_w, self.config.notch.closed_height) {
+                        hits.push((Action::Tab(Tab::Music), r));
+                    }
+
+                    let p_x = x1 - 66.0;
+                    let t_x = x1 - 44.0;
+                    let n_x = x1 - 22.0;
+
+                    if self.hover == Some(Action::Prev) {
+                        f.circle(p_x, cy, 9.0, WHITE, 0.18 * a);
+                    }
+                    f.icon(Icon::Prev, p_x, cy, 10.0, WHITE, 0.9 * a);
+                    if let Some(r) = sk::Rect::from_xywh(p_x - 10.0, cy - 10.0, 20.0, 20.0) {
+                        hits.push((Action::Prev, r));
+                    }
+
+                    let play_icon = if self.info.playing { Icon::Pause } else { Icon::Play };
+                    if self.hover == Some(Action::Toggle) {
+                        f.circle(t_x, cy, 11.0, WHITE, 0.22 * a);
+                    }
+                    f.icon(play_icon, t_x, cy, 12.0, WHITE, a);
+                    if let Some(r) = sk::Rect::from_xywh(t_x - 11.0, cy - 11.0, 22.0, 22.0) {
+                        hits.push((Action::Toggle, r));
+                    }
+
+                    if self.hover == Some(Action::Next) {
+                        f.circle(n_x, cy, 9.0, WHITE, 0.18 * a);
+                    }
+                    f.icon(Icon::Next, n_x, cy, 10.0, WHITE, 0.9 * a);
+                    if let Some(r) = sk::Rect::from_xywh(n_x - 10.0, cy - 10.0, 20.0, 20.0) {
+                        hits.push((Action::Next, r));
+                    }
+                } else {
+                    if self.live == Live::Lyric {
+                        let text = f.fit(self.lyric_text().unwrap_or(""), 13.0, true, x1 - x0 - 108.0);
+                        f.text_center(cx, 21.0, 13.0, true, WHITE, a, &text);
+                    }
+                    self.draw_equalizer(f, right, cy, a);
+                }
             }
             Live::Idle => f.eyes(cx, 15.0, 3.2, 9.0, self.blink, a),
         }
