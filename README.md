@@ -5,118 +5,97 @@
 <h1 align="center">Notch</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Author-Krisna%20Santosa-blue?style=flat-square" alt="Author Krisna Santosa" />
-  <img src="https://img.shields.io/badge/License-AGPL%20v3-green?style=flat-square" alt="License: AGPL v3" />
+  <a href="https://github.com/KrisnaSantosa15/notch/releases/latest"><img src="https://img.shields.io/github/v/release/KrisnaSantosa15/notch?style=flat-square&color=3B82F6" alt="Latest Release" /></a>
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat-square" alt="Platform" />
+  <img src="https://img.shields.io/badge/License-AGPL%20v3-green?style=flat-square" alt="License: AGPL v3" />
+  <a href="https://github.com/microsoft/winget-pkgs/tree/master/manifests/k/KrisnaSantosa15/notch"><img src="https://img.shields.io/badge/WinGet-KrisnaSantosa15.notch-0078D6?style=flat-square" alt="WinGet Package" /></a>
 </p>
 
 <p align="center">
-  <b>MacBook-like dynamic notch at the top edge of Windows 10/11 screens.</b><br>
-  Written in Rust without a web engine: exe ±1 MB, memory ±45 MB, and 0% CPU when idle.
+  <b>MacBook-like Dynamic Island & Notch for Windows 10/11.</b><br>
+  Built with native Win32 and tiny-skia in Rust. Zero web engine, ~1.4 MB binary, ~40 MB RAM, and 0% CPU idle.
 </p>
 
-## Running
+---
 
-## Installation
+## ✨ Features
 
-### WinGet (Windows Package Manager)
+- **Dynamic Island (Closed Notch)**:
+  - **Ambient Media**: Live music visualizer, album art, and synchronized scrolling lyrics.
+  - **Focus Timer**: Pomodoro countdown ring with glowing bottom-rim progress.
+  - **Satellite Bubble**: Detached island bubble when timer and music run concurrently.
+  - **Quick HUD**: Instant volume, Caps Lock, battery status, and hardware privacy dots (camera/mic).
+  - **Ambient Underglow**: Soft diffused aurora glow matching album art colors during playback.
 
-Install Notch directly via PowerShell or Windows Terminal:
+- **Interactive Modules (Open Notch)**:
+  - 🎵 **Music**: Track info, playback controls, seekbar, and synchronized line-tap lyrics ([LRCLIB](https://lrclib.net)).
+  - ⏱️ **Focus**: Pomodoro countdown (15/25/45/60 min) with live finish estimation and accent color matching.
+  - 📁 **Shelf**: AirDrop-style staging ground. Drag files onto the notch with magnetic suction ripples, drag them out anytime.
+  - 📝 **Tasks**: Quick to-do list with natural time parsing (`Stand-up 09:30`) and overdue alerts.
+  - ⚙️ **Settings**: In-GUI controls for theme accents, tab visibility, system behaviors, and 1-click Reset to Defaults.
 
+- **Apple-Grade Polish**:
+  - **Snappy Springs**: Critically damped physics ($K=360, \zeta=0.9$) with zero jelly wobble.
+  - **Specular Rim Highlight**: Optical glass reflection that tracks your cursor position in real-time.
+  - **Tactile Audio**: In-memory synthesized sound effects (pop, tick, chime, drop) without external audio files.
+  - **Fullscreen Auto-Suppress**: Automatically hides during gaming, fullscreen video, and presentations.
+
+---
+
+## 🎮 Controls & Gestures
+
+| Action | Result |
+| :--- | :--- |
+| **Hover or Click Notch** | Opens / expands notch |
+| **Win + Alt + N** | Toggle open / close globally |
+| **Scroll Wheel over Notch** | Adjust system volume (with haptic ticks & header capsule) |
+| **Shift + Scroll Wheel** | Seek media forward / backward ($\pm 5$s) |
+| **Drag Files onto Notch** | Expands Shelf with magnetic suction to stage files |
+| **Right-Click / Tray Icon** | Open context menu (Toggle, Autostart, About, Quit) |
+
+---
+
+## 🚀 Installation
+
+### Via WinGet (Recommended)
 ```powershell
 winget install KrisnaSantosa15.notch
 ```
 
-### Manual / From Source
+### Prebuilt Binary
+Download `notch-windows-x86_64.zip` from the [Latest Release](https://github.com/KrisnaSantosa15/notch/releases/latest), extract, and run `notch.exe`.
 
+### Build from Source
 ```powershell
 git clone https://github.com/KrisnaSantosa15/notch.git
 cd notch
 cargo run --release
 ```
 
-Produces `target\release\notch.exe`, ready to run directly.
+---
 
-## Configuration (`config.toml`)
+## ⚙️ Configuration
 
-Notch creates a configuration file at `%APPDATA%\Notch\config.toml` upon launch. You can easily open it by right-clicking the notch or tray icon and selecting **Edit config.toml**.
+Configure Notch directly from the built-in **Settings** tab. 
 
-Supported settings:
-- **Dimensions**: Closed/open width, height, and corner radius curvature.
-- **Tabs**: Enable or disable specific tabs (`media`, `focus`, `shelf`, `tasks`).
-- **Theme**: Accent color mode (`album_art` or `custom` hex code like `#3B82F6`).
-- **Behavior**: Auto-close delay (ms) and hover-to-open toggle.
+For advanced customization, Notch reads `%APPDATA%\Notch\config.toml` (dimensions, auto-close delay, and behavior toggles).
 
-## Features
+---
 
-**Closed notch** dynamically updates content based on state: blinking eyes when idle, mini artwork and
-equalizer when music is playing, currently sung lyric line, Focus countdown, task reminders,
-privacy indicators (green dot for camera, orange dot for microphone),
-and brief HUD overlays (volume, Caps Lock, charger, keyboard layout).
+## 🧪 Testing
 
-**Open notch** (hover mouse over notch) with frosted glass styling and system stats (CPU & RAM):
-
-| Tab | Content |
-|---|---|
-| Music | Artwork, controls, progress bar (click to seek), lyrics toggle |
-| Focus | Pomodoro 5/15/25/45 minutes with estimated finish time |
-| Shelf | Drag files into the notch, drag them out anytime. Files are not copied |
-| Tasks | To-do list. End with a time (`Meeting 15:30`, `Call Dina at 9:00`) for reminders |
-
-Synchronized lyrics fetched from [LRCLIB](https://lrclib.net) **only when lyrics are toggled on**.
-Click any lyric line to jump to that part of the song.
-
-## Controls
-
-| Action | Result |
-|---|---|
-| Hover mouse over notch | Opens |
-| Win + Alt + N | Toggle open / close |
-| Scroll over notch | Adjusts volume (in Shelf/Tasks: scrolls list) |
-| Drag files onto notch | Adds to Shelf |
-| Right click / Tray icon | Menu: Toggle, Start with Windows, Quit |
-
-The notch automatically hides during games, fullscreen video, or presentations.
-Data is saved to `%APPDATA%\Notch\state.txt`.
-
-## Structure
-
-- `main.rs`: data types, two stacked windows (glass backdrop + content), Windows message routing
-- `events.rs`: state and input: hover, click, drag, keystrokes, timers, lyrics, reminders
-- `view.rs`: closed and open notch layout and rendering
-- `ui.rs`: canvas, shapes, and icons
-- `media.rs`: currently playing track and artwork (Windows SMTC)
-- `lyrics.rs`: fetch and parse LRC lyrics
-- `shelf.rs`: drag-in/drag-out files, thumbnails
-- `tasks.rs`: tasks and reminder times
-- `store.rs`: save and load persistent state
-- `system.rs`: volume, Caps Lock, battery, keyboard layout, glass blur, autostart
-- `config.rs`: load, validate, and manage user settings from `config.toml`
-- `update.rs`: background GitHub Releases update checker and notification
-- `text.rs`: text rendering using Segoe UI font
-
-## Testing
-
-```
-cargo test             # unit tests
-cargo test -- --ignored  # includes fetching lyrics from the internet
+```powershell
+cargo test                 # unit tests
+cargo test -- --ignored    # includes live LRCLIB network test
 ```
 
-## Debug
+---
 
-- `NOTCH_OPEN=music|focus|shelf|tasks`: open the notch without hovering
-- `NOTCH_DUMP=frame.png`: dump the last frame to a PNG file
-- `NOTCH_FAKE_MEDIA="title|artist|duration|position"`: simulate a playing track
+## 📜 License
 
-## License
-
-This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPLv3) &copy; 2026 Krisna Santosa.
-
-<hr>
+Licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPLv3) &copy; 2026 Krisna Santosa.
 
 <p align="center">
-  Notch is open source. Built with Love by <b>Krisna Santosa</b>.
-</p>
-<p align="center">
-  <img src="assets/notch-logo.jpg" width="100" alt="Notch Logo" style="border-radius: 20px;" />
+  <img src="assets/notch-logo.jpg" width="80" alt="Notch Logo" style="border-radius: 18px;" /><br>
+  Built with precision by <b>Krisna Santosa</b>
 </p>
