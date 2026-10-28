@@ -2,7 +2,6 @@
 
 use crate::*;
 use std::mem::discriminant;
-use windows::Win32::Media::Audio::{PlaySoundW, SND_ALIAS, SND_ASYNC};
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 
 const SHELF_VISIBLE: usize = 5;
@@ -711,7 +710,6 @@ impl App {
 
     fn notify(&mut self) {
         unsafe {
-            let _ = PlaySoundW(windows::core::w!("SystemNotification"), None, SND_ALIAS | SND_ASYNC);
             SetTimer(self.hwnd, TIMER_ALERT, 8000, None);
         }
         self.bump();
