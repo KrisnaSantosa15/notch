@@ -13,7 +13,7 @@ winget install KrisnaSantosa15.notch
 ## Validating the Manifest Locally
 
 ```powershell
-winget validate --manifest winget\KrisnaSantosa15.notch.yaml
+winget validate --manifest winget\manifests\k\KrisnaSantosa15\notch\0.5.1
 ```
 
 ---
@@ -29,9 +29,9 @@ You can submit or update the package using Microsoft's official [`wingetcreate`]
 
 2. Submit the latest release URL:
    ```powershell
-   wingetcreate submit https://github.com/KrisnaSantosa15/notch/releases/download/v0.5.1/notch-windows-x86_64.zip
+   wingetcreate update KrisnaSantosa15.notch -v 0.5.1 -u https://github.com/KrisnaSantosa15/notch/releases/download/v0.5.1/notch-windows-x86_64.zip --submit
    ```
    Or submit from the validated manifest in this folder:
    ```powershell
-   wingetcreate submit --manifest winget\KrisnaSantosa15.notch.yaml
+   wingetcreate submit winget\manifests\k\KrisnaSantosa15\notch\0.5.1
    ```
