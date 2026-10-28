@@ -4,7 +4,6 @@
 use std::sync::RwLock;
 use windows::core::HSTRING;
 use windows::Data::Json::JsonObject;
-use windows::Foundation::Uri;
 use windows::Web::Http::HttpClient;
 
 pub const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -22,11 +21,7 @@ pub fn check_latest_release() -> Option<UpdateInfo> {
     if let Ok(headers) = client.DefaultRequestHeaders() {
         let _ = headers.UserAgent().and_then(|ua| ua.TryParseAdd(&HSTRING::from("Notch-App")));
     }
-    let uri = Uri::CreateUri(&HSTRING::from(
-        "https://api.github.com/repos/KrisnaSantosa15/notch/releases/latest",
-    ))
-    .ok()?;
-    let body = client.GetStringAsync(&uri).ok()?.get().ok()?.to_string();
+    let body = crate::system::http_get(&client, "https://api.github.com/repos/KrisnaSantosa15/notch/releases/latest")?;
     let json = JsonObject::Parse(&HSTRING::from(body)).ok()?;
     let tag = json.GetNamedString(&HSTRING::from("tag_name")).ok()?.to_string();
     let url = json.GetNamedString(&HSTRING::from("html_url")).ok()?.to_string();

@@ -456,3 +456,19 @@ mod tests {
         assert_eq!(&wav[36..40], b"data");
     }
 }
+
+/// GET a URL as text, giving up after 10 s so a stalled connection can't hang the caller forever.
+pub fn http_get(client: &windows::Web::Http::HttpClient, url: &str) -> Option<String> {
+    use windows::Foundation::{AsyncStatus, Uri};
+    let uri = Uri::CreateUri(&windows::core::HSTRING::from(url)).ok()?;
+    let op = client.GetStringAsync(&uri).ok()?;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while op.Status().ok()? == AsyncStatus::Started {
+        if std::time::Instant::now() > deadline {
+            let _ = op.Cancel();
+            return None;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    Some(op.GetResults().ok()?.to_string())
+}

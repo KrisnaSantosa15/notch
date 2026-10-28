@@ -3,7 +3,6 @@
 
 use windows::core::HSTRING;
 use windows::Data::Json::{JsonArray, JsonObject, JsonValueType};
-use windows::Foundation::Uri;
 use windows::Web::Http::HttpClient;
 
 pub struct Lyrics {
@@ -27,10 +26,7 @@ pub fn fetch(title: &str, artist: &str, duration: f64) -> Option<Lyrics> {
     if let Ok(headers) = client.DefaultRequestHeaders() {
         let _ = headers.UserAgent().and_then(|ua| ua.TryParseAdd(&HSTRING::from("Notch/0.3")));
     }
-    let get = |url: String| -> Option<String> {
-        let uri = Uri::CreateUri(&HSTRING::from(url)).ok()?;
-        Some(client.GetStringAsync(&uri).ok()?.get().ok()?.to_string())
-    };
+    let get = |url: String| crate::system::http_get(&client, &url);
 
     let base = "https://lrclib.net/api";
     let mut exact = format!("{base}/get?track_name={}&artist_name={}", enc(&track), enc(&artist));
