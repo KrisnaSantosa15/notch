@@ -523,6 +523,13 @@ impl App {
         let mut dirty = minute != self.minute;
         self.minute = minute;
 
+        let caps = system::caps_lock();
+        if self.tick > 1 && caps != self.caps {
+            self.caps = caps;
+            self.show_hud(Hud::Caps(caps));
+            dirty = true;
+        }
+
         if self.focus.running() {
             dirty = true;
             if self.focus.remaining() <= 0.0 {

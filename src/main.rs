@@ -231,6 +231,7 @@ struct App {
     battery: Option<(bool, u8)>,
     privacy: (bool, bool), // (camera_in_use, microphone_in_use)
     stats: (u8, u8),       // (cpu_percent, ram_percent)
+    caps: bool,
     hover: Option<Action>,
     hits: Vec<(Action, sk::Rect)>,
     press: Option<(Action, f32, f32)>,
@@ -436,8 +437,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             }
         }
         WM_APP_KEY => {
-            let timer = if wp.0 == system::KEY_VOLUME { TIMER_VOLUME } else { TIMER_CAPS };
-            SetTimer(hwnd, timer, 60, None);
+            SetTimer(hwnd, TIMER_VOLUME, 30, None);
         }
         WM_POWERBROADCAST => {
             if wp.0 == PBT_APMPOWERSTATUSCHANGE {
@@ -562,6 +562,7 @@ fn main() -> Result<()> {
             battery: system::battery(),
             privacy: (false, false),
             stats: (0, system::ram_usage()),
+            caps: system::caps_lock(),
             hover: None,
             hits: Vec::new(),
             press: None,
@@ -604,7 +605,7 @@ fn main() -> Result<()> {
 
         let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE); // glass window appears automatically when the notch opens
         SetTimer(hwnd, TIMER_TICK, 1000, None);
-        system::install_key_hook(hwnd, WM_APP_KEY);
+        system::register_volume_notify(hwnd, WM_APP_KEY);
         let _ = RegisterHotKey(hwnd, HOTKEY_TOGGLE, MOD_WIN | MOD_ALT | MOD_NOREPEAT, 'N' as u32);
 
         let update_hwnd = hwnd.0 as isize;

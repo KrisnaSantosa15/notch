@@ -1,11 +1,14 @@
 //! Small Windows bridge: volume, Caps Lock, battery, fullscreen detection, and autostart.
 
-use std::sync::atomic::{AtomicIsize, Ordering};
 use windows::core::{w, PCWSTR};
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Gdi::*;
-use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
-use windows::Win32::Media::Audio::{eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator};
+use windows::Win32::Media::Audio::Endpoints::{
+    IAudioEndpointVolume, IAudioEndpointVolumeCallback, IAudioEndpointVolumeCallback_Impl,
+};
+use windows::Win32::Media::Audio::{
+    eConsole, eRender, AUDIO_VOLUME_NOTIFICATION_DATA, IMMDeviceEnumerator, MMDeviceEnumerator,
+};
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
@@ -15,7 +18,6 @@ use windows::Win32::UI::Shell::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 pub const KEY_VOLUME: usize = 1;
-pub const KEY_CAPS: usize = 2;
 
 fn endpoint() -> Option<IAudioEndpointVolume> {
     unsafe {
@@ -92,39 +94,27 @@ pub fn fullscreen() -> bool {
     }
 }
 
-// ---- Volume & Caps Lock keys: low-level keyboard hook -----------------------------------
-// The hook only forwards messages to the window; values are read afterwards,
-// once Windows finishes applying the key state.
+// ---- Volume notifications via Windows Core Audio (no keyboard hooks needed) -----------
 
-static TARGET: AtomicIsize = AtomicIsize::new(0);
-static MESSAGE: AtomicIsize = AtomicIsize::new(0);
+#[windows::core::implement(IAudioEndpointVolumeCallback)]
+struct VolumeNotification(HWND, u32);
 
-pub fn install_key_hook(hwnd: HWND, msg: u32) {
-    TARGET.store(hwnd.0 as isize, Ordering::Relaxed);
-    MESSAGE.store(msg as isize, Ordering::Relaxed);
-    unsafe {
-        if let Ok(module) = GetModuleHandleW(None) {
-            let _ = SetWindowsHookExW(WH_KEYBOARD_LL, Some(key_hook), module, 0);
+impl IAudioEndpointVolumeCallback_Impl for VolumeNotification_Impl {
+    fn OnNotify(&self, _data: *mut AUDIO_VOLUME_NOTIFICATION_DATA) -> windows::core::Result<()> {
+        unsafe {
+            let _ = PostMessageW(self.0, self.1, WPARAM(KEY_VOLUME), LPARAM(0));
         }
+        Ok(())
     }
 }
 
-unsafe extern "system" fn key_hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
-    if code >= 0 {
-        let key = &*(lp.0 as *const KBDLLHOOKSTRUCT);
-        let vk = VIRTUAL_KEY(key.vkCode as u16);
-        let down = matches!(wp.0 as u32, WM_KEYDOWN | WM_SYSKEYDOWN);
-        let kind = match vk {
-            VK_VOLUME_UP | VK_VOLUME_DOWN | VK_VOLUME_MUTE if down => KEY_VOLUME,
-            VK_CAPITAL if !down => KEY_CAPS,
-            _ => 0,
-        };
-        if kind != 0 {
-            let hwnd = HWND(TARGET.load(Ordering::Relaxed) as _);
-            let _ = PostMessageW(hwnd, MESSAGE.load(Ordering::Relaxed) as u32, WPARAM(kind), LPARAM(0));
+pub fn register_volume_notify(hwnd: HWND, msg: u32) {
+    if let Some(ep) = endpoint() {
+        let cb: IAudioEndpointVolumeCallback = VolumeNotification(hwnd, msg).into();
+        unsafe {
+            let _ = ep.RegisterControlChangeNotify(&cb);
         }
     }
-    CallNextHookEx(None, code, wp, lp)
 }
 
 // ---- Glass: native DWM blur on the backdrop window ---------------------------------------
