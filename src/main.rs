@@ -95,6 +95,11 @@ enum Action {
     SettingsAccent(usize),
     SettingsToggleSound,
     SettingsToggleFullscreen,
+    SettingsToggleHover,
+    SettingsToggleAutostart,
+    SettingsToggleTab(usize),
+    SettingsAdjustWidth(i32),
+    SettingsAdjustHeight(i32),
     SettingsOpenConfig,
 }
 

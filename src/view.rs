@@ -718,8 +718,8 @@ impl App {
         let a = c.a;
         let left = x0 + 26.0;
 
-        // Row 1: THEME ACCENT
-        c.f.text(left, 62.0, 11.0, true, WHITE, 0.5 * a, "THEME ACCENT");
+        // Row 1 (y = 44..70): THEME ACCENT (left) & NOTCH SIZE (right)
+        c.f.text(left, 56.0, 10.5, true, WHITE, 0.5 * a, "THEME ACCENT");
 
         let accents: [(&str, [u8; 3]); 6] = [
             ("Auto", [180, 180, 190]),
@@ -731,7 +731,7 @@ impl App {
         ];
 
         let mut sx = left;
-        let sy = 70.0;
+        let sy = 64.0;
         let is_auto = self.config.theme.accent_mode.eq_ignore_ascii_case("album_art");
         for (i, (name, color)) in accents.iter().enumerate() {
             let is_sel = if i == 0 {
@@ -746,70 +746,68 @@ impl App {
                 })
             };
 
-            let sw_w = if i == 0 { 48.0 } else { 22.0 };
-            let sw_h = 22.0;
+            let sw_w = if i == 0 { 42.0 } else { 20.0 };
+            let sw_h = 20.0;
 
             if is_sel {
-                c.f.fill(rrect(sx - 2.0, sy - 2.0, sw_w + 4.0, sw_h + 4.0, 7.0), WHITE, 0.9 * a);
+                c.f.fill(rrect(sx - 2.0, sy - 2.0, sw_w + 4.0, sw_h + 4.0, 6.0), WHITE, 0.9 * a);
             }
             if i == 0 {
                 let bg = if is_sel { 0.9 } else { 0.2 };
                 let txt_color = if is_sel { BLACK } else { WHITE };
-                c.f.fill(rrect(sx, sy, sw_w, sw_h, 5.0), WHITE, bg * a);
-                c.f.text_center(sx + sw_w / 2.0, sy + 15.0, 11.0, true, txt_color, a, name);
+                c.f.fill(rrect(sx, sy, sw_w, sw_h, 4.5), WHITE, bg * a);
+                c.f.text_center(sx + sw_w / 2.0, sy + 14.0, 10.5, true, txt_color, a, name);
             } else {
-                c.f.fill(rrect(sx, sy, sw_w, sw_h, 5.0), *color, a);
+                c.f.fill(rrect(sx, sy, sw_w, sw_h, 4.5), *color, a);
             }
 
             c.hit(Action::SettingsAccent(i), sx, sy, sw_w, sw_h);
-            sx += sw_w + 10.0;
+            sx += sw_w + 8.0;
         }
 
-        // Row 2: BEHAVIOR
-        c.f.text(left, 114.0, 11.0, true, WHITE, 0.5 * a, "BEHAVIOR");
+        // Notch Size Stepper on the right side of Row 1
+        let step_rx = x1 - 26.0;
+        let w_label = format!("W:{} H:{}", self.config.notch.open_width as i32, self.config.notch.open_height as i32);
+        c.f.text_right(step_rx - 106.0, 56.0, 10.0, true, WHITE, 0.5 * a, &w_label);
+        let bw1 = c.pill(Action::SettingsAdjustWidth(-20), step_rx - 102.0, 62.0, "-W", None, false, false);
+        let bw2 = c.pill(Action::SettingsAdjustWidth(20), step_rx - 102.0 + bw1 + 3.0, 62.0, "+W", None, false, false);
+        let bh1 = c.pill(Action::SettingsAdjustHeight(-10), step_rx - 102.0 + bw1 + bw2 + 6.0, 62.0, "-H", None, false, false);
+        c.pill(Action::SettingsAdjustHeight(10), step_rx - 102.0 + bw1 + bw2 + bh1 + 9.0, 62.0, "+H", None, false, false);
 
-        let sound_txt = if self.config.behavior.sound_effects {
-            "Audio Haptics: ON"
-        } else {
-            "Audio Haptics: OFF"
-        };
-        let w_sound = c.pill(
-            Action::SettingsToggleSound,
-            left,
-            122.0,
-            sound_txt,
-            None,
-            self.config.behavior.sound_effects,
-            false,
-        );
+        // Row 2 (y = 94..120): VISIBLE TABS & RAW CONFIG
+        c.f.text(left, 100.0, 10.5, true, WHITE, 0.5 * a, "ENABLED TABS");
+        let tabs = [
+            ("Music", self.config.tabs.media),
+            ("Focus", self.config.tabs.focus),
+            ("Shelf", self.config.tabs.shelf),
+            ("Tasks", self.config.tabs.tasks),
+        ];
+        let mut tx = left;
+        for (idx, (t_name, on)) in tabs.iter().enumerate() {
+            let label = if *on { format!("{t_name}: ON") } else { format!("{t_name}: OFF") };
+            let pw = c.pill(Action::SettingsToggleTab(idx), tx, 106.0, &label, None, *on, false);
+            tx += pw + 6.0;
+        }
+        c.pill(Action::SettingsOpenConfig, step_rx - 92.0, 106.0, "config.toml ↗", None, false, false);
 
-        let fs_txt = if self.config.behavior.auto_hide_fullscreen {
-            "Auto-Hide Fullscreen: ON"
-        } else {
-            "Auto-Hide Fullscreen: OFF"
-        };
-        c.pill(
-            Action::SettingsToggleFullscreen,
-            left + w_sound + 8.0,
-            122.0,
-            fs_txt,
-            None,
-            self.config.behavior.auto_hide_fullscreen,
-            false,
-        );
+        // Row 3 (y = 138..166): BEHAVIOR
+        c.f.text(left, 140.0, 10.5, true, WHITE, 0.5 * a, "BEHAVIOR & SYSTEM");
+        let mut bx = left;
 
-        // Row 3: CONFIG & VERSION
-        c.pill(
-            Action::SettingsOpenConfig,
-            left,
-            156.0,
-            "Open config.toml",
-            None,
-            false,
-            false,
-        );
-        let ver = format!("Notch v{}", env!("CARGO_PKG_VERSION"));
-        c.f.text_right(x1 - 26.0, 172.0, 11.0, true, WHITE, 0.45 * a, &ver);
+        let sound_txt = if self.config.behavior.sound_effects { "Haptics: ON" } else { "Haptics: OFF" };
+        let w_s = c.pill(Action::SettingsToggleSound, bx, 146.0, sound_txt, None, self.config.behavior.sound_effects, false);
+        bx += w_s + 6.0;
+
+        let fs_txt = if self.config.behavior.auto_hide_fullscreen { "Fullscreen Hide: ON" } else { "Fullscreen Hide: OFF" };
+        let w_fs = c.pill(Action::SettingsToggleFullscreen, bx, 146.0, fs_txt, None, self.config.behavior.auto_hide_fullscreen, false);
+        bx += w_fs + 6.0;
+
+        let hover_txt = if self.config.behavior.hover_to_open { "Hover Open: ON" } else { "Hover Open: OFF" };
+        let w_h = c.pill(Action::SettingsToggleHover, bx, 146.0, hover_txt, None, self.config.behavior.hover_to_open, false);
+        bx += w_h + 6.0;
+
+        let auto_txt = if system::autostart() { "Autostart: ON" } else { "Autostart: OFF" };
+        c.pill(Action::SettingsToggleAutostart, bx, 146.0, auto_txt, None, system::autostart(), false);
     }
 }
 

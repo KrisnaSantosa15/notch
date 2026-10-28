@@ -418,6 +418,43 @@ impl App {
                 self.play_sound(system::Sound::Pop);
                 self.redraw();
             }
+            Action::SettingsToggleHover => {
+                self.config.behavior.hover_to_open = !self.config.behavior.hover_to_open;
+                self.config.save();
+                self.play_sound(system::Sound::Pop);
+                self.redraw();
+            }
+            Action::SettingsToggleAutostart => {
+                let on = system::autostart();
+                system::set_autostart(!on);
+                self.play_sound(system::Sound::Pop);
+                self.redraw();
+            }
+            Action::SettingsToggleTab(i) => {
+                match i {
+                    0 => self.config.tabs.media = !self.config.tabs.media,
+                    1 => self.config.tabs.focus = !self.config.tabs.focus,
+                    2 => self.config.tabs.shelf = !self.config.tabs.shelf,
+                    _ => self.config.tabs.tasks = !self.config.tabs.tasks,
+                }
+                self.config.save();
+                self.play_sound(system::Sound::Pop);
+                self.redraw();
+            }
+            Action::SettingsAdjustWidth(delta) => {
+                self.config.notch.open_width = (self.config.notch.open_width + delta as f32).clamp(380.0, 720.0);
+                self.config.save();
+                self.play_sound(system::Sound::Pop);
+                self.relayout();
+                self.retarget();
+            }
+            Action::SettingsAdjustHeight(delta) => {
+                self.config.notch.open_height = (self.config.notch.open_height + delta as f32).clamp(150.0, 260.0);
+                self.config.save();
+                self.play_sound(system::Sound::Pop);
+                self.relayout();
+                self.retarget();
+            }
             Action::SettingsOpenConfig => {
                 if let Some(path) = config::path() {
                     shelf::open(&path.to_string_lossy());
