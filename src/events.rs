@@ -771,13 +771,12 @@ impl App {
             }
         }
 
-        if self.tick % 2 == 0 {
+        // CPU/RAM are only shown in the open header
+        if self.open && self.tick % 2 == 0 {
             let stats = (system::cpu_usage(), system::ram_usage());
             if stats != self.stats {
                 self.stats = stats;
-                if self.open {
-                    dirty = true;
-                }
+                dirty = true;
             }
         }
 
