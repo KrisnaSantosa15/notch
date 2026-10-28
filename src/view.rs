@@ -615,8 +615,7 @@ impl App {
     fn draw_lyric_column(&mut self, c: &mut Ctx, lyrics: &Arc<lyrics::Lyrics>, col_x: f32, col_w: f32) {
         let a = c.a;
         // wrap lines once per track, store their positions
-        let source = Arc::as_ptr(lyrics) as usize;
-        let fresh = self.lyric_layout.as_ref().map(|l| l.source) != Some(source);
+        let fresh = !self.lyric_layout.as_ref().is_some_and(|l| Arc::ptr_eq(&l.source, lyrics));
         if fresh {
             let mut y = 0.0;
             let mut rows = Vec::new();
@@ -628,7 +627,7 @@ impl App {
                 rows.push((y, wrapped));
                 y += height + 9.0;
             }
-            self.lyric_layout = Some(LyricLayout { source, rows });
+            self.lyric_layout = Some(LyricLayout { source: lyrics.clone(), rows });
         }
         let layout = self.lyric_layout.take().unwrap();
 

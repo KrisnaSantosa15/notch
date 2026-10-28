@@ -199,7 +199,7 @@ impl Spring {
 
 /// Position of each lyric line in the lyrics column (already wrapped to screen lines).
 struct LyricLayout {
-    source: usize, // Lyrics address, to detect when recalculation is needed
+    source: Arc<lyrics::Lyrics>, // held (not just its address) so a new track can never reuse it
     rows: Vec<(f32, Vec<String>)>,
 }
 
