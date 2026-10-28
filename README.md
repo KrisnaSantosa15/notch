@@ -18,7 +18,7 @@
 
 ---
 
-## ✨ Features
+## Features
 
 - **Dynamic Island (Closed Notch)**:
   - **Ambient Media**: Live music visualizer, album art, and synchronized scrolling lyrics.
@@ -28,34 +28,34 @@
   - **Ambient Underglow**: Soft diffused aurora glow matching album art colors during playback.
 
 - **Interactive Modules (Open Notch)**:
-  - 🎵 **Music**: Track info, playback controls, seekbar, and synchronized line-tap lyrics ([LRCLIB](https://lrclib.net)).
-  - ⏱️ **Focus**: Pomodoro countdown (15/25/45/60 min) with live finish estimation and accent color matching.
-  - 📁 **Shelf**: AirDrop-style staging ground. Drag files onto the notch with magnetic suction ripples, drag them out anytime.
-  - 📝 **Tasks**: Quick to-do list with natural time parsing (`Stand-up 09:30`) and overdue alerts.
-  - ⚙️ **Settings**: In-GUI controls for theme accents, tab visibility, system behaviors, and 1-click Reset to Defaults.
+  - **Music**: Track info, playback controls, seekbar, and synchronized line-tap lyrics ([LRCLIB](https://lrclib.net)).
+  - **Focus**: Pomodoro countdown (15/25/45/60 min) with live finish estimation and accent color matching.
+  - **Shelf**: Staging ground for dragging files onto the notch and retrieving them later.
+  - **Tasks**: Quick to-do list with natural time parsing (`Stand-up 09:30`) and overdue alerts.
+  - **Settings**: In-app controls for theme accents, tab visibility, system behaviors, and reset to defaults.
 
-- **Apple-Grade Polish**:
-  - **Snappy Springs**: Critically damped physics ($K=360, \zeta=0.9$) with zero jelly wobble.
-  - **Specular Rim Highlight**: Optical glass reflection that tracks your cursor position in real-time.
-  - **Tactile Audio**: In-memory synthesized sound effects (pop, tick, chime, drop) without external audio files.
-  - **Fullscreen Auto-Suppress**: Automatically hides during gaming, fullscreen video, and presentations.
+- **Engineering**:
+  - **Spring Physics**: Critically damped physics without rubbery overshoot.
+  - **Specular Rim Highlight**: Optical glass reflection tracking cursor position.
+  - **Tactile Audio**: In-memory synthesized sound effects (pop, tick, chime, drop) without external files.
+  - **Fullscreen Suppression**: Automatically hides during gaming, fullscreen video, and presentations.
 
 ---
 
-## 🎮 Controls & Gestures
+## Controls and Shortcuts
 
 | Action | Result |
 | :--- | :--- |
 | **Hover or Click Notch** | Opens / expands notch |
 | **Win + Alt + N** | Toggle open / close globally |
 | **Scroll Wheel over Notch** | Adjust system volume (with haptic ticks & header capsule) |
-| **Shift + Scroll Wheel** | Seek media forward / backward ($\pm 5$s) |
-| **Drag Files onto Notch** | Expands Shelf with magnetic suction to stage files |
-| **Right-Click / Tray Icon** | Open context menu (Toggle, Autostart, About, Quit) |
+| **Shift + Scroll Wheel** | Seek media forward / backward (+/- 5s) |
+| **Drag Files onto Notch** | Expands Shelf to stage files |
+| **Right-Click / Tray Icon** | Context menu (Toggle, Autostart, About, Quit) |
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### Via WinGet (Recommended)
 ```powershell
@@ -74,7 +74,7 @@ cargo run --release
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 Configure Notch directly from the built-in **Settings** tab. 
 
@@ -82,7 +82,7 @@ For advanced customization, Notch reads `%APPDATA%\Notch\config.toml` (dimension
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```powershell
 cargo test                 # unit tests
@@ -91,7 +91,7 @@ cargo test -- --ignored    # includes live LRCLIB network test
 
 ---
 
-## 📜 License
+## License
 
 Licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPLv3) &copy; 2026 Krisna Santosa.
 
