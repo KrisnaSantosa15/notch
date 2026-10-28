@@ -159,8 +159,9 @@ impl App {
                 f.text_right(right, 21.0, 12.0, true, WHITE, a, &name);
             }
             Live::Alert => {
-                f.ring(left, cy, 7.5, 2.4, 1.0, ORANGE, a);
-                f.text_right(right, 21.0, 12.0, true, ORANGE, a, "Time's up");
+                let color = self.accent();
+                f.ring(left, cy, 7.5, 2.4, 1.0, color, a);
+                f.text_right(right, 21.0, 12.0, true, color, a, "Time's up");
             }
             Live::Reminder => {
                 f.icon(Icon::Bell, left, cy, 15.0, ORANGE, a);
@@ -191,8 +192,9 @@ impl App {
                 }
             }
             Live::Timer => {
-                f.ring(left, cy, 7.5, 2.4, self.focus.progress(), ORANGE, a);
-                f.text_right(right, 21.0, 13.0, true, ORANGE, a, &mmss(self.focus.remaining().ceil()));
+                let color = self.accent();
+                f.ring(left, cy, 7.5, 2.4, self.focus.progress(), color, a);
+                f.text_right(right, 21.0, 13.0, true, color, a, &mmss(self.focus.remaining().ceil()));
             }
             Live::Media | Live::Lyric => {
                 self.mini_art(f, x0, a);
@@ -305,7 +307,7 @@ impl App {
             .as_ref()
             .map(|art| art.accent)
             .or_else(|| config::parse_hex_color(&self.config.theme.custom_accent))
-            .unwrap_or(WHITE)
+            .unwrap_or(ORANGE)
     }
 
     // ---- Open notch -------------------------------------------------------------------------
@@ -539,6 +541,7 @@ impl App {
 
     fn draw_focus(&mut self, c: &mut Ctx, x0: f32, x1: f32) {
         let a = c.a;
+        let accent = self.accent();
         let focus = &self.focus;
         let (rx, ry, rr) = (x0 + 60.0, 94.0, 32.0);
 
@@ -546,7 +549,7 @@ impl App {
         if c.hover == Some(Action::FocusToggle) {
             c.f.circle(rx, ry, rr - 4.0, WHITE, 0.08 * a);
         }
-        c.f.ring(rx, ry, rr, 5.0, if focus.active() { focus.progress() } else { 0.0 }, ORANGE, a);
+        c.f.ring(rx, ry, rr, 5.0, if focus.active() { focus.progress() } else { 0.0 }, accent, a);
         let icon = if focus.running() { Icon::Pause } else { Icon::Play };
         c.f.icon(icon, rx + if focus.running() { 0.0 } else { 2.0 }, ry, 20.0, WHITE, a);
         c.hit(Action::FocusToggle, rx - rr, ry - rr, rr * 2.0, rr * 2.0);
