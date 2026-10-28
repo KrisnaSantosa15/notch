@@ -585,9 +585,18 @@ impl App {
         self.keyboard = keyboard;
 
         // step aside during games, fullscreen video, or presentations
-        let hide = system::fullscreen();
+        let hide = if self.config.behavior.auto_hide_fullscreen {
+            system::fullscreen(self.hwnd, self.backdrop)
+        } else {
+            false
+        };
         if hide != self.hidden {
             self.hidden = hide;
+            if hide && self.open {
+                self.open = false;
+                self.hovering = false;
+                self.retarget();
+            }
             unsafe {
                 let _ = ShowWindow(self.hwnd, if hide { SW_HIDE } else { SW_SHOWNOACTIVATE });
             }

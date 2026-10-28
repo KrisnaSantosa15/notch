@@ -60,7 +60,7 @@ pub fn battery() -> Option<(bool, u8)> {
 }
 
 /// True when a game, fullscreen video, or presentation is active: notch steps aside.
-pub fn fullscreen() -> bool {
+pub fn fullscreen(ignore1: HWND, ignore2: HWND) -> bool {
     let state = unsafe { SHQueryUserNotificationState() };
     if let Ok(s) = state {
         if s == QUNS_RUNNING_D3D_FULL_SCREEN || s == QUNS_PRESENTATION_MODE {
@@ -69,7 +69,12 @@ pub fn fullscreen() -> bool {
     }
     unsafe {
         let fg = GetForegroundWindow();
-        if fg.0.is_null() || fg == GetDesktopWindow() || fg == GetShellWindow() {
+        if fg.0.is_null()
+            || fg == GetDesktopWindow()
+            || fg == GetShellWindow()
+            || fg == ignore1
+            || fg == ignore2
+        {
             return false;
         }
         let mut r = RECT::default();

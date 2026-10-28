@@ -98,6 +98,8 @@ pub struct BehaviorConfig {
     pub auto_close_delay_ms: u32,
     /// Whether hovering mouse cursor over closed notch automatically opens it (default: true)
     pub hover_to_open: bool,
+    /// Whether to automatically hide notch during fullscreen apps/games/videos (default: true)
+    pub auto_hide_fullscreen: bool,
 }
 
 impl Default for BehaviorConfig {
@@ -105,6 +107,7 @@ impl Default for BehaviorConfig {
         Self {
             auto_close_delay_ms: 260,
             hover_to_open: true,
+            auto_hide_fullscreen: true,
         }
     }
 }
@@ -173,6 +176,9 @@ auto_close_delay_ms = 260
 
 # Whether hovering mouse cursor over closed notch automatically opens it
 hover_to_open = true
+
+# Whether to automatically hide notch during fullscreen apps, games, or videos
+auto_hide_fullscreen = true
 "##;
 
 pub fn load() -> Config {
@@ -212,6 +218,7 @@ mod tests {
         assert!(cfg.tabs.media);
         assert_eq!(cfg.theme.accent_mode, "album_art");
         assert_eq!(cfg.behavior.auto_close_delay_ms, 260);
+        assert!(cfg.behavior.auto_hide_fullscreen);
     }
 
     #[test]
