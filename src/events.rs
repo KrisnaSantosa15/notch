@@ -480,7 +480,20 @@ impl App {
             self.redraw();
             return;
         }
+
+        // Shift + Wheel scrubs currently playing media (±5s)
+        let is_shift = unsafe { GetKeyState(VK_SHIFT.0 as i32) } < 0;
+        if is_shift && self.info.has_session && self.info.duration > 0.0 {
+            let scrub = if delta > 0 { 5.0 } else { -5.0 };
+            let target = (self.info.position + scrub).clamp(0.0, self.info.duration);
+            self.seek(target);
+            self.play_sound(system::Sound::Tick);
+            return;
+        }
+
+        // Wheel over notch adjusts master volume with haptic feedback
         if let Some((level, muted)) = system::nudge_volume(delta as f32 / 120.0 * 0.04) {
+            self.play_sound(system::Sound::Tick);
             self.show_hud(Hud::Volume(level, muted));
         }
     }

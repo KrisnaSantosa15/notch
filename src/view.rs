@@ -136,7 +136,7 @@ impl App {
                 let (bw, bx) = (128.0, right - 34.0 - 128.0);
                 f.fill(rrect(bx, cy - 2.0, bw, 4.0, 2.0), WHITE, 0.18 * a);
                 let fill = if muted { 0.0 } else { bw * level };
-                f.fill(rrect(bx, cy - 2.0, fill, 4.0, 2.0), WHITE, a);
+                f.fill(rrect(bx, cy - 2.0, fill, 4.0, 2.0), self.accent(), a);
             }
             Live::Hud(Hud::Caps(on)) => {
                 f.icon(Icon::Caps(on), left, cy, 15.0, WHITE, a);

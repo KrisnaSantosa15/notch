@@ -367,11 +367,13 @@ pub enum Sound {
     Pop,
     Chime,
     Drop,
+    Tick,
 }
 
 static POP_WAV: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
 static CHIME_WAV: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
 static DROP_WAV: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+static TICK_WAV: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
 
 fn generate_wav<F: Fn(f32) -> f32>(duration_ms: u32, sample_rate: u32, generator: F) -> Vec<u8> {
     let num_samples = (sample_rate * duration_ms / 1000) as usize;
@@ -426,6 +428,12 @@ pub fn play_sound(sound: Sound) {
             generate_wav(35, 22050, |t| {
                 let env = (-t * 110.0).exp();
                 (t * 220.0 * std::f32::consts::TAU).sin() * env * 0.5
+            })
+        }),
+        Sound::Tick => TICK_WAV.get_or_init(|| {
+            generate_wav(12, 22050, |t| {
+                let env = (-t * 360.0).exp();
+                (t * 2800.0 * std::f32::consts::TAU).sin() * env * 0.35
             })
         }),
     };
