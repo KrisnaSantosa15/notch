@@ -232,15 +232,35 @@ impl App {
             }
             Live::Welcome => {
                 let t = self.started.elapsed().as_secs_f32();
-                let look = (t * 2.4).sin() * 2.2;
-                let blink = (t * 1.6).fract() < 0.10;
+
+                // Natural, expressive eye gaze cycle (Center -> Look Right -> Look Left -> Center)
+                let cycle = t % 7.2;
+                let look = if cycle < 2.0 {
+                    0.0 // Center
+                } else if cycle < 2.5 {
+                    let p = (cycle - 2.0) / 0.5;
+                    p * 2.4 // Smooth glance to the right
+                } else if cycle < 4.4 {
+                    2.4 // Hold looking right
+                } else if cycle < 4.9 {
+                    let p = (cycle - 4.4) / 0.5;
+                    2.4 - p * 4.8 // Smooth glance to the left
+                } else if cycle < 6.7 {
+                    -2.4 // Hold looking left
+                } else {
+                    let p = (cycle - 6.7) / 0.5;
+                    -2.4 + p * 2.4 // Smooth return to center
+                };
+
+                // Natural blink once every 3.8 seconds for ~150ms
+                let blink = (t % 3.8) < 0.15;
                 f.animated_eyes(left, cy, 3.2, 8.0, blink, look, a);
 
                 let tips = [
-                    "✨ Welcome to Notch",
-                    "👋 Hover or click to open",
-                    "📁 Drag files here to Shelf",
-                    "⚡ Press Win+Alt+N",
+                    "Welcome to Notch",
+                    "Hover or click to open",
+                    "Drag files here to Shelf",
+                    "Press Win+Alt+N",
                 ];
                 let idx = ((t / 3.0) as usize) % tips.len();
                 f.text_center(cx, 21.0, 12.0, true, WHITE, a, tips[idx]);

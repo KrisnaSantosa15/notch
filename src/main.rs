@@ -498,6 +498,21 @@ unsafe extern "system" fn backdrop_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LP
     }
 }
 
+fn load_tray_icon() -> HICON {
+    const ICON_PNG: &[u8] = include_bytes!("../assets/notch-32.png");
+    unsafe {
+        CreateIconFromResourceEx(
+            ICON_PNG,
+            true,
+            0x00030000,
+            32,
+            32,
+            LR_DEFAULTCOLOR,
+        )
+        .unwrap_or_else(|_| LoadIconW(None, IDI_APPLICATION).unwrap_or_default())
+    }
+}
+
 fn main() -> Result<()> {
     unsafe {
         let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -517,11 +532,13 @@ fn main() -> Result<()> {
         system::set_blur_shape(backdrop, None);
 
         let class = w!("NotchPrototype");
+        let app_icon = load_tray_icon();
         RegisterClassW(&WNDCLASSW {
             lpfnWndProc: Some(wndproc),
             hInstance: instance.into(),
             lpszClassName: class,
             hCursor: LoadCursorW(None, IDC_ARROW)?,
+            hIcon: app_icon,
             ..Default::default()
         });
         // owned by the backdrop window, so it always stays right above it
@@ -645,7 +662,7 @@ fn main() -> Result<()> {
             uID: 1,
             uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
             uCallbackMessage: WM_APP_TRAY,
-            hIcon: LoadIconW(None, IDI_APPLICATION).unwrap_or_default(),
+            hIcon: load_tray_icon(),
             szTip: [0; 128],
             ..Default::default()
         };

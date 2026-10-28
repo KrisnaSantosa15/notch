@@ -144,8 +144,9 @@ impl Frame<'_> {
     #[allow(clippy::too_many_arguments)]
     pub fn animated_eyes(&mut self, cx: f32, cy: f32, r: f32, gap: f32, blink: bool, look_x: f32, a: f32) {
         for ex in [cx - gap, cx + gap] {
-            self.circle(ex, cy, r * 2.2, [90, 150, 255], 0.16 * a);
-            let ry = if blink { r * 0.15 } else { r };
+            self.circle(ex, cy, r * 2.2, [24, 28, 40], 0.85 * a);
+            self.circle(ex, cy, r * 2.2, [90, 150, 255], 0.25 * a);
+            let ry = if blink { (r * 0.15).max(0.6) } else { r };
             let oval = sk::Rect::from_xywh(ex - r + look_x, cy - ry, r * 2.0, ry * 2.0).and_then(sk::PathBuilder::from_oval);
             self.fill(oval, [255, 255, 255], a);
         }
