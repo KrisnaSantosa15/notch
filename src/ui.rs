@@ -137,10 +137,16 @@ impl Frame<'_> {
     /// Pair of glowing eyes, mascot when idle.
     #[allow(clippy::too_many_arguments)]
     pub fn eyes(&mut self, cx: f32, cy: f32, r: f32, gap: f32, blink: bool, a: f32) {
+        self.animated_eyes(cx, cy, r, gap, blink, 0.0, a);
+    }
+
+    /// Pair of glowing eyes with horizontal look direction offset.
+    #[allow(clippy::too_many_arguments)]
+    pub fn animated_eyes(&mut self, cx: f32, cy: f32, r: f32, gap: f32, blink: bool, look_x: f32, a: f32) {
         for ex in [cx - gap, cx + gap] {
             self.circle(ex, cy, r * 2.2, [90, 150, 255], 0.16 * a);
             let ry = if blink { r * 0.15 } else { r };
-            let oval = sk::Rect::from_xywh(ex - r, cy - ry, r * 2.0, ry * 2.0).and_then(sk::PathBuilder::from_oval);
+            let oval = sk::Rect::from_xywh(ex - r + look_x, cy - ry, r * 2.0, ry * 2.0).and_then(sk::PathBuilder::from_oval);
             self.fill(oval, [255, 255, 255], a);
         }
     }

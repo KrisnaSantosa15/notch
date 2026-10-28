@@ -109,9 +109,6 @@ impl App {
                 Tab::Tasks => self.draw_tasks(&mut c, x0, x1, cx),
                 Tab::Settings => self.draw_settings(&mut c, x0, x1, cx),
             }
-            if self.welcome_banner {
-                self.draw_welcome(&mut c, x0, x1, cx, h);
-            }
         }
 
         let pm = f.pm;
@@ -170,6 +167,28 @@ impl App {
                 let text = self.reminder.clone().unwrap_or_default();
                 let text = f.fit(&text, 12.0, true, x1 - x0 - 70.0);
                 f.text(left + 16.0, 21.0, 12.0, true, WHITE, a, &text);
+            }
+            Live::Welcome => {
+                let t = self.started.elapsed().as_secs_f32();
+                let look = (t * 2.4).sin() * 2.2;
+                let blink = (t * 1.6).fract() < 0.10;
+                f.animated_eyes(left, cy, 3.2, 8.0, blink, look, a);
+
+                let tips = [
+                    "✨ Welcome to Notch",
+                    "👋 Hover or click to open",
+                    "📁 Drag files here to Shelf",
+                    "⚡ Press Win+Alt+N",
+                ];
+                let idx = ((t / 3.0) as usize) % tips.len();
+                f.text_center(cx, 21.0, 12.0, true, WHITE, a, tips[idx]);
+
+                let color = self.accent();
+                for i in 0..3 {
+                    let wave = ((t * 5.5 + i as f32 * 1.8).sin() * 0.5 + 0.5) * 8.0 + 3.0;
+                    let bar_x = right - (2 - i) as f32 * 5.5;
+                    f.fill(rrect(bar_x, cy - wave / 2.0, 2.8, wave, 1.4), color, a * 0.9);
+                }
             }
             Live::Timer => {
                 f.ring(left, cy, 7.5, 2.4, self.focus.progress(), ORANGE, a);
@@ -693,31 +712,6 @@ impl App {
             c.f.fill(rrect(cx, fy + 6.0, 1.5, 14.0, 0.75), WHITE, a);
         }
         c.hit(Action::TaskInput, fx, fy, fw, 26.0);
-    }
-
-    fn draw_welcome(&mut self, c: &mut Ctx, x0: f32, x1: f32, _cx: f32, h: f32) {
-        let a = c.a;
-        let y = h - 34.0;
-        let w = (x1 - x0 - 40.0).max(100.0);
-        let x = x0 + 20.0;
-        let r = 10.0;
-
-        let accent = self.accent();
-        c.f.fill(rrect(x, y, w, 26.0, r), BLACK, 0.85 * a);
-        c.f.stroke(rrect(x, y, w, 26.0, r), 1.0, accent, 0.45 * a);
-
-        let msg = "👋 Hover to open  •  Drag files to Shelf  •  Win+Alt+N";
-        c.f.text(x + 12.0, y + 17.0, 11.0, true, WHITE, 0.9 * a, msg);
-
-        let btn_w = 48.0;
-        let btn_x = x + w - btn_w - 4.0;
-        let btn_y = y + 3.0;
-        let hovered = c.hover == Some(Action::DismissWelcome);
-        let btn_bg = if hovered { 0.28 } else { 0.14 };
-        c.f.fill(rrect(btn_x, btn_y, btn_w, 20.0, 6.0), WHITE, btn_bg * a);
-        c.f.text_center(btn_x + btn_w / 2.0, btn_y + 14.0, 11.0, true, WHITE, a, "Got it");
-
-        c.hit(Action::DismissWelcome, btn_x, btn_y, btn_w, 20.0);
     }
 
     fn draw_settings(&mut self, c: &mut Ctx, x0: f32, x1: f32, _cx: f32) {

@@ -16,6 +16,8 @@ impl App {
             Live::Alert
         } else if self.reminder.is_some() {
             Live::Reminder
+        } else if self.welcome_tour {
+            Live::Welcome
         } else if self.focus.running() {
             Live::Timer
         } else if self.lyric_text().is_some_and(|t| !t.is_empty()) && self.info.playing {
@@ -39,6 +41,7 @@ impl App {
             Live::Hud(_) => 300.0,
             Live::Alert => 270.0,
             Live::Reminder => 340.0,
+            Live::Welcome => 340.0,
             Live::Timer => 236.0,
             Live::Media | Live::Lyric => {
                 if self.hovering && !self.open && self.info.has_session {
@@ -85,14 +88,14 @@ impl App {
     }
 
     pub(crate) fn show_welcome(&mut self) {
-        self.open = true;
-        self.hovering = true;
-        self.welcomed = true;
-        self.welcome_banner = true;
+        self.welcome_tour = true;
+        self.welcome_since = Instant::now();
+        self.open = false;
+        self.hovering = false;
         self.play_sound(system::Sound::Chime);
-        self.save();
-        self.schedule_close(8000);
+        self.update_live_timer();
         self.retarget();
+        self.redraw();
     }
 
     /// Recalculate notch target dimensions and start its animation.
@@ -132,7 +135,7 @@ impl App {
 
     /// Equalizer only animates when music is playing and the notch is closed.
     fn update_live_timer(&mut self) {
-        let want = !self.open && !self.hidden && (matches!(self.live, Live::Media | Live::Lyric) || (self.focus.running() && self.info.has_session)) && self.info.playing;
+        let want = !self.open && !self.hidden && (self.welcome_tour || ((matches!(self.live, Live::Media | Live::Lyric) || (self.focus.running() && self.info.has_session)) && self.info.playing));
         if want != self.live_timer {
             self.live_timer = want;
             unsafe {
@@ -202,6 +205,11 @@ impl App {
                 let _ = TrackMouseEvent(&mut tme);
             }
         }
+        if self.welcome_tour {
+            self.welcome_tour = false;
+            self.welcomed = true;
+            self.save();
+        }
         if !self.open && self.config.behavior.hover_to_open {
             if self.info.has_session {
                 self.retarget();
@@ -252,6 +260,11 @@ impl App {
     }
 
     pub(crate) fn on_click(&mut self, x: f32, y: f32) {
+        if self.welcome_tour {
+            self.welcome_tour = false;
+            self.welcomed = true;
+            self.save();
+        }
         let (x, y) = (x / self.scale, y / self.scale);
         let pressed = self.press.take();
         let Some((action, rect)) = self.hit_rect(x, y) else {
@@ -364,11 +377,6 @@ impl App {
                 if let Some(info) = update::UPDATE_AVAILABLE.read().ok().and_then(|u| u.clone()) {
                     shelf::open(&info.url);
                 }
-            }
-            Action::DismissWelcome => {
-                self.welcome_banner = false;
-                self.play_sound(system::Sound::Pop);
-                self.redraw();
             }
             Action::SettingsAccent(i) => {
                 match i {

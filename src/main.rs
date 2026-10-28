@@ -92,7 +92,6 @@ enum Action {
     TaskRemove(usize),
     TaskInput,
     OpenUpdate,
-    DismissWelcome,
     SettingsAccent(usize),
     SettingsToggleSound,
     SettingsToggleFullscreen,
@@ -115,6 +114,7 @@ enum Live {
     Alert,
     Reminder,
     Timer,
+    Welcome,
     Lyric,
     Media,
     Idle,
@@ -262,7 +262,8 @@ struct App {
     fonts: Option<text::Fonts>,
     pub(crate) config: config::Config,
     pub(crate) welcomed: bool,
-    pub(crate) welcome_banner: bool,
+    pub(crate) welcome_tour: bool,
+    pub(crate) welcome_since: Instant,
 }
 
 thread_local! {
@@ -597,14 +598,12 @@ fn main() -> Result<()> {
             fonts: Some(text::Fonts::load()),
             config: cfg,
             welcomed: saved.welcomed,
-            welcome_banner: false,
+            welcome_tour: !saved.welcomed,
+            welcome_since: now,
         };
         APP.with(|cell| *cell.borrow_mut() = Some(app));
         with_app(|a| {
             a.relayout();
-            if !a.welcomed {
-                a.show_welcome();
-            }
         });
 
         // debug: NOTCH_OPEN=music|focus|shelf|tasks opens the notch without hover (for screenshots)
