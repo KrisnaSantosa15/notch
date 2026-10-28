@@ -101,6 +101,10 @@ cargo test -- --ignored    # includes live LRCLIB network test
 
 ---
 
+## Privacy
+
+No account, analytics or telemetry. Notch only goes online to fetch synced lyrics (while lyrics are on) and to check GitHub for updates once at startup. See [PRIVACY.md](PRIVACY.md).
+
 ## License
 
 Licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPLv3) &copy; 2026 Krisna Santosa.
