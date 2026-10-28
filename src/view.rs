@@ -46,7 +46,7 @@ impl App {
 
         // body: solid black when closed (blends into screen bezel), dark glass when open
         let mix = |a: [u8; 3]| a.map(|v| (v as f32 * t) as u8);
-        let alpha = 1.0 - 0.24 * t;
+        let alpha = 1.0 - 0.04 * t;
         let c = |rgb: [u8; 3]| sk::Color::from_rgba8(rgb[0], rgb[1], rgb[2], (alpha * 255.0) as u8);
         let body = sk::LinearGradient::new(
             sk::Point::from_xy(0.0, 0.0),

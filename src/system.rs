@@ -11,7 +11,6 @@ use windows::Win32::Media::Audio::{
     PlaySoundW, SND_ASYNC, SND_MEMORY,
 };
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
-use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
 use windows::Win32::System::Registry::*;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
@@ -124,60 +123,18 @@ pub fn register_volume_notify(hwnd: HWND, msg: u32) {
 }
 
 // ---- Glass: native DWM blur on the backdrop window ---------------------------------------
-// Windows blurs the screen content behind the notch, incurring zero CPU cost for us.
-// Shaped using a window region; anti-aliased edges are drawn by the main window on top.
+// Note: Modern Windows DWM ignores GDI regions (SetWindowRgn) when ACCENT_ENABLE_BLURBEHIND
+// is active, which causes unclipped sharp rectangular frosted grey halos on rounded notch corners.
+// To ensure perfectly smooth, anti-aliased curves without rectangular artifacts, the backdrop
+// window is kept hidden, and Notch renders its deep dark glass via per-pixel alpha on the main window.
 
-#[repr(C)]
-struct AccentPolicy {
-    state: u32,
-    flags: u32,
-    gradient: u32,
-    animation: u32,
-}
-
-#[repr(C)]
-struct CompositionData {
-    attribute: u32,
-    data: *mut std::ffi::c_void,
-    size: usize,
-}
-
-pub fn enable_blur(hwnd: HWND) {
-    const WCA_ACCENT_POLICY: u32 = 19;
-    const ACCENT_ENABLE_BLURBEHIND: u32 = 3;
-    type SetComposition = unsafe extern "system" fn(HWND, *mut CompositionData) -> BOOL;
-    unsafe {
-        let Ok(user32) = GetModuleHandleW(w!("user32.dll")) else { return };
-        let Some(func) = windows::Win32::System::LibraryLoader::GetProcAddress(
-            user32,
-            windows::core::s!("SetWindowCompositionAttribute"),
-        ) else {
-            return;
-        };
-        let set: SetComposition = std::mem::transmute(func);
-        let mut accent = AccentPolicy { state: ACCENT_ENABLE_BLURBEHIND, flags: 0, gradient: 0, animation: 0 };
-        let mut data = CompositionData {
-            attribute: WCA_ACCENT_POLICY,
-            data: &mut accent as *mut _ as *mut _,
-            size: std::mem::size_of::<AccentPolicy>(),
-        };
-        let _ = set(hwnd, &mut data);
-    }
-}
+pub fn enable_blur(_hwnd: HWND) {}
 
 /// Blur area in screen pixels: (left, top, width, height, bottom corner radius). `None` = hide.
-/// DWM blurs the entire window rect, so the window itself is resized;
-/// the region is only used to round the bottom corners.
-pub fn set_blur_shape(hwnd: HWND, shape: Option<(i32, i32, i32, i32, i32)>) {
-    use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
+/// Kept hidden to prevent rectangular DWM composition halos from protruding past curved corners.
+pub fn set_blur_shape(hwnd: HWND, _shape: Option<(i32, i32, i32, i32, i32)>) {
     unsafe {
-        let Some((x, y, w, h, rad)) = shape else {
-            let _ = ShowWindow(hwnd, SW_HIDE);
-            return;
-        };
-        let _ = SetWindowPos(hwnd, None, x, y, w, h, SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW);
-        // top corners are placed outside the window, so only bottom corners round
-        SetWindowRgn(hwnd, CreateRoundRectRgn(0, -2 * rad, w + 1, h + 1, rad * 2, rad * 2), true);
+        let _ = ShowWindow(hwnd, SW_HIDE);
     }
 }
 
