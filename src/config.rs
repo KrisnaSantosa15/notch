@@ -205,7 +205,10 @@ pub fn load() -> Config {
 
     match std::fs::read_to_string(&path) {
         Ok(content) => match toml::from_str::<Config>(&content) {
-            Ok(cfg) => cfg,
+            Ok(mut cfg) => {
+                cfg.sanitize();
+                cfg
+            }
             Err(e) => {
                 // keep the broken file, otherwise the next in-app setting change would overwrite it
                 eprintln!("Failed to parse config.toml: {e}. Using defaults, kept as config.toml.bad.");
@@ -218,6 +221,20 @@ pub fn load() -> Config {
 }
 
 impl Config {
+    /// Clamps hand-edited values to sane ranges (0, negative, or huge sizes break rendering).
+    pub fn sanitize(&mut self) {
+        let d = NotchConfig::default();
+        let fix = |v: f32, def: f32, min: f32, max: f32| if v.is_finite() { v.clamp(min, max) } else { def };
+        let n = &mut self.notch;
+        n.closed_height = fix(n.closed_height, d.closed_height, 20.0, 80.0);
+        n.closed_width = fix(n.closed_width, d.closed_width, 80.0, 600.0);
+        n.open_width = fix(n.open_width, d.open_width, 300.0, 1000.0);
+        n.open_height = fix(n.open_height, d.open_height, 120.0, 400.0);
+        n.corner_radius = fix(n.corner_radius, d.corner_radius, 0.0, n.closed_height / 2.0);
+        n.open_radius = fix(n.open_radius, d.open_radius, 0.0, 80.0);
+        self.behavior.auto_close_delay_ms = self.behavior.auto_close_delay_ms.min(10_000);
+    }
+
     pub fn save(&self) {
         if let Some(path) = path() {
             if let Ok(content) = toml::to_string_pretty(self) {
@@ -266,6 +283,18 @@ mod tests {
         assert_eq!(parse_hex_color("#fff"), Some([255, 255, 255]));
         assert_eq!(parse_hex_color("invalid"), None);
         assert_eq!(parse_hex_color("aéé1"), None);
+    }
+
+    #[test]
+    fn sanitize_clamps_sizes() {
+        let mut cfg = Config::default();
+        cfg.notch.open_width = 0.0;
+        cfg.notch.open_height = f32::NAN;
+        cfg.notch.closed_width = 1e9;
+        cfg.sanitize();
+        assert_eq!(cfg.notch.open_width, 300.0);
+        assert_eq!(cfg.notch.open_height, 180.0);
+        assert_eq!(cfg.notch.closed_width, 600.0);
     }
 
     #[test]
