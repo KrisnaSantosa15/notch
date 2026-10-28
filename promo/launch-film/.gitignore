@@ -1,0 +1,5 @@
+node_modules/
+stills/
+cuts/
+*.wav
+*.mp4

@@ -1,0 +1,16 @@
+{
+  "name": "notch-launch-film",
+  "private": true,
+  "description": "Deterministic HTML/Canvas source for assets/notch-launch.mp4",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "stills": "node render.mjs stills 2.4 7.2 11.9 13.95 19.9",
+    "video": "node render.mjs film",
+    "audio": "node audio.mjs",
+    "mux": "ffmpeg -y -i notch-video.mp4 -i score.wav -map 0:v -map 1:a -c:v copy -af loudnorm=I=-14:TP=-1:LRA=11,aresample=48000 -c:a aac -b:a 256k -shortest ../../assets/notch-launch.mp4",
+    "build": "npm run video && npm run audio && npm run mux"
+  },
+  "dependencies": {
+    "playwright-core": "1.64.1"
+  }
+}
