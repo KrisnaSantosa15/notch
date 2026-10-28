@@ -43,9 +43,9 @@ pub fn is_newer(latest: &str, current: &str) -> bool {
             .filter_map(|s| s.parse().ok())
             .collect()
     };
-    let l = parse_ver(latest);
-    let c = parse_ver(current);
-    l > c
+    // same numbers: a final release (no "-rc1" suffix) is newer than its pre-release
+    let key = |v: &str| (parse_ver(v), !v.contains('-'));
+    key(latest) > key(current)
 }
 
 pub fn check_in_background(on_found: impl FnOnce(UpdateInfo) + Send + 'static) {
@@ -72,5 +72,7 @@ mod tests {
         assert!(is_newer("1.0.0", "0.3.0"));
         assert!(!is_newer("0.3.0", "0.3.0"));
         assert!(!is_newer("0.2.9", "0.3.0"));
+        assert!(is_newer("0.6.0", "0.6.0-rc1"));
+        assert!(!is_newer("0.6.0-rc1", "0.6.0"));
     }
 }
