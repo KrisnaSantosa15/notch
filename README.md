@@ -18,6 +18,16 @@
 
 ---
 
+## Demo
+
+<p align="center">
+  <a href="assets/notch-launch.mp4">
+    <img src="assets/notch-launch-poster.jpg" alt="Notch launch film: click to play" width="100%" />
+  </a>
+  <br>
+  <sub>Click the image to watch the 22-second launch film (1080p, with sound).</sub>
+</p>
+
 ## Features
 
 - **Dynamic Island (Closed Notch)**:
