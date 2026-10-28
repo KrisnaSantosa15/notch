@@ -26,7 +26,6 @@ pub enum Icon {
     Tray,
     Check,
     Close,
-    Bell,
     Plus,
 }
 
@@ -342,17 +341,21 @@ impl Frame<'_> {
                 self.stroke(line(cx - s, cy, cx + s, cy), z * 0.12, rgb, a);
                 self.stroke(line(cx, cy - s, cx, cy + s), z * 0.12, rgb, a);
             }
-            Icon::Bell => {
-                let mut pb = sk::PathBuilder::new();
-                pb.move_to(cx - z * 0.42, cy + z * 0.24);
-                pb.quad_to(cx - z * 0.3, cy + z * 0.1, cx - z * 0.3, cy - z * 0.08);
-                pb.cubic_to(cx - z * 0.3, cy - z * 0.5, cx + z * 0.3, cy - z * 0.5, cx + z * 0.3, cy - z * 0.08);
-                pb.quad_to(cx + z * 0.3, cy + z * 0.1, cx + z * 0.42, cy + z * 0.24);
-                pb.close();
-                self.fill(pb.finish(), rgb, a);
-                self.circle(cx, cy + z * 0.36, z * 0.1, rgb, a);
-            }
         }
+    }
+
+    /// Bell swung by `angle` degrees around its top, so it can ring.
+    pub fn bell(&mut self, cx: f32, cy: f32, z: f32, angle: f32, rgb: [u8; 3], a: f32) {
+        let swing = sk::Transform::from_rotate_at(angle, cx, cy - z * 0.45);
+        let mut pb = sk::PathBuilder::new();
+        pb.move_to(cx - z * 0.42, cy + z * 0.24);
+        pb.quad_to(cx - z * 0.3, cy + z * 0.1, cx - z * 0.3, cy - z * 0.08);
+        pb.cubic_to(cx - z * 0.3, cy - z * 0.5, cx + z * 0.3, cy - z * 0.5, cx + z * 0.3, cy - z * 0.08);
+        pb.quad_to(cx + z * 0.3, cy + z * 0.1, cx + z * 0.42, cy + z * 0.24);
+        pb.close();
+        self.fill(pb.finish().and_then(|p| p.transform(swing)), rgb, a);
+        let clapper = sk::PathBuilder::from_circle(cx, cy + z * 0.36, z * 0.1).and_then(|p| p.transform(swing));
+        self.fill(clapper, rgb, a);
     }
 }
 

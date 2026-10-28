@@ -152,6 +152,11 @@ impl App {
         (self.live_since.elapsed().as_secs_f32() / 0.22).min(1.0)
     }
 
+    /// The reminder bell keeps swinging for a moment after it appears.
+    fn bell_ringing(&self) -> bool {
+        self.live == Live::Reminder && self.live_since.elapsed().as_secs_f32() < 1.2
+    }
+
     fn animate(&mut self) {
         let now = Instant::now();
         let dt = now.duration_since(self.last_frame).as_secs_f32().min(0.05);
@@ -166,7 +171,7 @@ impl App {
             self.scroll.step(dt / steps, 0.92);
         }
         let springs = [self.w, self.h, self.r, self.scroll];
-        if springs.iter().all(Spring::done) && self.content_alpha() >= 1.0 && !self.drag_in {
+        if springs.iter().all(Spring::done) && self.content_alpha() >= 1.0 && !self.drag_in && !self.bell_ringing() {
             for s in [&mut self.w, &mut self.h, &mut self.r, &mut self.scroll] {
                 s.snap();
             }
@@ -730,7 +735,7 @@ impl App {
         let now = media::unix_now();
         if let Some(task) = self.tasks.iter_mut().find(|t| !t.done && !t.notified && t.due.is_some_and(|d| d <= now)) {
             task.notified = true;
-            self.reminder = (!self.open).then(|| task.text.clone());
+            self.reminder = (!self.open).then(|| (task.text.clone(), task.label.clone()));
             self.play_sound(system::Sound::Chime);
             self.notify();
             dirty = true;

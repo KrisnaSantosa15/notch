@@ -239,9 +239,14 @@ impl App {
                 f.text_right(right, 21.0, 12.0, true, color, a, "Time's up");
             }
             Live::Reminder => {
-                f.icon(Icon::Bell, left, cy, 15.0, ORANGE, a);
-                let text = self.reminder.clone().unwrap_or_default();
-                let text = f.fit(&text, 12.0, true, x1 - x0 - 70.0);
+                // the bell rings (decaying swing) as the reminder lands; its time sits on the right
+                let accent = self.accent();
+                let e = self.live_since.elapsed().as_secs_f32();
+                let swing = (e * 30.0).sin() * 20.0 * (-e * 4.5).exp();
+                f.bell(left, cy, 15.0, swing, accent, a);
+                let (text, label) = self.reminder.clone().unwrap_or_default();
+                let label_x = if label.is_empty() { right } else { f.text_right(right, 21.0, 12.0, true, accent, a, &label) - 10.0 };
+                let text = f.fit(&text, 12.0, true, label_x - (left + 16.0));
                 f.text(left + 16.0, 21.0, 12.0, true, WHITE, a, &text);
             }
             Live::Welcome => {

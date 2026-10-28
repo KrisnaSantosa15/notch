@@ -237,7 +237,8 @@ struct App {
     focus: Focus,
     hud: Option<Hud>,
     alert: bool,
-    reminder: Option<String>,
+    /// Task text and its time label while a reminder is showing.
+    reminder: Option<(String, String)>,
     battery: Option<(bool, u8)>,
     privacy: (bool, bool), // (camera_in_use, microphone_in_use)
     stats: (u8, u8),       // (cpu_percent, ram_percent)
