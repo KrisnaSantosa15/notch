@@ -132,7 +132,7 @@ impl App {
 
     /// Equalizer only animates when music is playing and the notch is closed.
     fn update_live_timer(&mut self) {
-        let want = !self.open && !self.hidden && matches!(self.live, Live::Media | Live::Lyric) && self.info.playing;
+        let want = !self.open && !self.hidden && (matches!(self.live, Live::Media | Live::Lyric) || (self.focus.running() && self.info.has_session)) && self.info.playing;
         if want != self.live_timer {
             self.live_timer = want;
             unsafe {

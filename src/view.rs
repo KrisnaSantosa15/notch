@@ -27,6 +27,13 @@ impl App {
         let ts = sk::Transform::from_scale(s, s);
         let shape = notch_path(x0, x1, h, r, EAR);
 
+        let has_satellite = !self.open && self.focus.running() && self.info.has_session;
+        let sat_w = 32.0;
+        let sat_h = self.config.notch.closed_height;
+        let sat_x = x1 + EAR + 8.0;
+        let sat_r = 16.0;
+        let sat_path = has_satellite.then(|| rrect(sat_x, 0.0, sat_w, sat_h, sat_r)).flatten();
+
         // soft shadow beneath open panel
         if t > 0.0 {
             for i in 1..=7 {
@@ -51,9 +58,15 @@ impl App {
         .unwrap_or(sk::Shader::SolidColor(c(BLACK)));
         let body = sk::Paint { shader: body, anti_alias: true, ..Default::default() };
         pm.fill_path(&shape, &body, sk::FillRule::Winding, ts, None);
+        if let Some(ref sp) = sat_path {
+            pm.fill_path(sp, &body, sk::FillRule::Winding, ts, None);
+        }
 
         let mut mask = sk::Mask::new(self.pw, self.ph).unwrap();
         mask.fill_path(&shape, sk::FillRule::Winding, true, ts);
+        if let Some(ref sp) = sat_path {
+            mask.fill_path(sp, sk::FillRule::Winding, true, ts);
+        }
 
         let closed_a = (1.0 - t * 3.0).clamp(0.0, 1.0) * self.content_alpha();
         let open_a = ((t - 0.55) / 0.45).clamp(0.0, 1.0);
@@ -68,6 +81,18 @@ impl App {
         let mut hits = Vec::new();
         if closed_a > 0.0 {
             self.draw_live(&mut f, &mut hits, x0, x1, cx, closed_a);
+            if has_satellite {
+                let sat_cy = sat_h / 2.0;
+                match &self.info.art {
+                    Some(art) => f.image(&art.image, sat_x + 6.0, 6.0, 20.0, 6.0, closed_a),
+                    None => {
+                        self.draw_equalizer(&mut f, sat_x + sat_w - 6.0, sat_cy, closed_a);
+                    }
+                }
+                if let Some(rect) = sk::Rect::from_xywh(sat_x, 0.0, sat_w, sat_h) {
+                    hits.push((Action::Tab(Tab::Music), rect));
+                }
+            }
         }
         if open_a > 0.0 {
             // buttons only become clickable once sufficiently visible
@@ -870,4 +895,24 @@ impl Ctx<'_, '_> {
 fn mmss(sec: f64) -> String {
     let s = sec.max(0.0).round() as u64;
     format!("{}:{:02}", s / 60, s % 60)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mmss_formatting() {
+        assert_eq!(mmss(0.0), "0:00");
+        assert_eq!(mmss(65.0), "1:05");
+        assert_eq!(mmss(1500.0), "25:00");
+    }
+
+    #[test]
+    fn test_notch_and_satellite_paths() {
+        let notch = notch_path(100.0, 300.0, 32.0, 12.0, 9.0);
+        assert!(!notch.is_empty());
+        let sat = rrect(310.0, 0.0, 32.0, 32.0, 16.0);
+        assert!(sat.is_some());
+    }
 }
