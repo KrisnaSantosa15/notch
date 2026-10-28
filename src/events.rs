@@ -78,6 +78,17 @@ impl App {
         self.retarget();
     }
 
+    pub(crate) fn show_welcome(&mut self) {
+        self.open = true;
+        self.hovering = true;
+        self.welcomed = true;
+        self.welcome_banner = true;
+        self.play_sound(system::Sound::Chime);
+        self.save();
+        self.schedule_close(8000);
+        self.retarget();
+    }
+
     /// Recalculate notch target dimensions and start its animation.
     pub(crate) fn retarget(&mut self) {
         let live = self.current_live();
@@ -328,6 +339,11 @@ impl App {
                 if let Some(info) = update::UPDATE_AVAILABLE.read().ok().and_then(|u| u.clone()) {
                     shelf::open(&info.url);
                 }
+            }
+            Action::DismissWelcome => {
+                self.welcome_banner = false;
+                self.play_sound(system::Sound::Pop);
+                self.redraw();
             }
         }
         self.sync_lyric();
@@ -691,7 +707,7 @@ impl App {
 
     fn save(&self) {
         let files: Vec<String> = self.shelf.iter().map(|i| i.path.clone()).collect();
-        store::save(self.lyrics_on, self.focus.minutes, &files, &self.tasks);
+        store::save(self.welcomed, self.lyrics_on, self.focus.minutes, &files, &self.tasks);
     }
 
     /// Redraw only when not animating (animation already draws every frame).

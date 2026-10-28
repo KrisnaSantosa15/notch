@@ -91,6 +91,7 @@ enum Action {
     TaskRemove(usize),
     TaskInput,
     OpenUpdate,
+    DismissWelcome,
 }
 
 /// Brief HUD message that appears for ~2 seconds then disappears.
@@ -255,6 +256,8 @@ struct App {
 
     fonts: Option<text::Fonts>,
     pub(crate) config: config::Config,
+    pub(crate) welcomed: bool,
+    pub(crate) welcome_banner: bool,
 }
 
 thread_local! {
@@ -313,10 +316,12 @@ fn show_menu(hwnd: HWND) {
     const EDIT_CONFIG: usize = 3;
     const ABOUT: usize = 4;
     const UPDATE: usize = 5;
-    const QUIT: usize = 6;
+    const WELCOME: usize = 6;
+    const QUIT: usize = 7;
     unsafe {
         let Ok(menu) = CreatePopupMenu() else { return };
         let _ = AppendMenuW(menu, MF_STRING, TOGGLE, w!("Toggle Open / Close"));
+        let _ = AppendMenuW(menu, MF_STRING, WELCOME, w!("Welcome Tour & Tips"));
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
         let check = if system::autostart() { MF_CHECKED } else { MF_UNCHECKED };
         let _ = AppendMenuW(menu, MF_STRING | check, AUTOSTART, w!("Start with Windows"));
@@ -358,6 +363,9 @@ fn show_menu(hwnd: HWND) {
                 if let Some(info) = update_info {
                     shelf::open(&info.url);
                 }
+            }
+            WELCOME => {
+                with_app(|a| a.show_welcome());
             }
             QUIT => {
                 let _ = DestroyWindow(hwnd);
@@ -582,9 +590,16 @@ fn main() -> Result<()> {
             caret: true,
             fonts: Some(text::Fonts::load()),
             config: cfg,
+            welcomed: saved.welcomed,
+            welcome_banner: false,
         };
         APP.with(|cell| *cell.borrow_mut() = Some(app));
-        with_app(|a| a.relayout());
+        with_app(|a| {
+            a.relayout();
+            if !a.welcomed {
+                a.show_welcome();
+            }
+        });
 
         // debug: NOTCH_OPEN=music|focus|shelf|tasks opens the notch without hover (for screenshots)
         if let Ok(tab) = std::env::var("NOTCH_OPEN") {

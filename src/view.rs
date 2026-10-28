@@ -83,6 +83,9 @@ impl App {
                 Tab::Shelf => self.draw_shelf(&mut c, x0, x1, cx),
                 Tab::Tasks => self.draw_tasks(&mut c, x0, x1, cx),
             }
+            if self.welcome_banner {
+                self.draw_welcome(&mut c, x0, x1, cx, h);
+            }
         }
 
         let pm = f.pm;
@@ -618,6 +621,31 @@ impl App {
             c.f.fill(rrect(cx, fy + 5.0, 1.5, 14.0, 0.75), WHITE, a);
         }
         c.hit(Action::TaskInput, fx, fy, fw, 24.0);
+    }
+
+    fn draw_welcome(&mut self, c: &mut Ctx, x0: f32, x1: f32, _cx: f32, h: f32) {
+        let a = c.a;
+        let y = h - 34.0;
+        let w = (x1 - x0 - 40.0).max(100.0);
+        let x = x0 + 20.0;
+        let r = 10.0;
+
+        let accent = self.accent();
+        c.f.fill(rrect(x, y, w, 26.0, r), BLACK, 0.85 * a);
+        c.f.stroke(rrect(x, y, w, 26.0, r), 1.0, accent, 0.45 * a);
+
+        let msg = "👋 Hover to open  •  Drag files to Shelf  •  Win+Alt+N";
+        c.f.text(x + 12.0, y + 17.0, 11.0, true, WHITE, 0.9 * a, msg);
+
+        let btn_w = 48.0;
+        let btn_x = x + w - btn_w - 4.0;
+        let btn_y = y + 3.0;
+        let hovered = c.hover == Some(Action::DismissWelcome);
+        let btn_bg = if hovered { 0.28 } else { 0.14 };
+        c.f.fill(rrect(btn_x, btn_y, btn_w, 20.0, 6.0), WHITE, btn_bg * a);
+        c.f.text_center(btn_x + btn_w / 2.0, btn_y + 14.0, 11.0, true, WHITE, a, "Got it");
+
+        c.hit(Action::DismissWelcome, btn_x, btn_y, btn_w, 20.0);
     }
 }
 
