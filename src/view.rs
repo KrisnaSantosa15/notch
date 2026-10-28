@@ -6,7 +6,7 @@ use crate::*;
 const PRESETS: [u32; 4] = [5, 15, 25, 45];
 const DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const SHELF_VISIBLE: usize = 5;
-const TASKS_VISIBLE: usize = 4;
+const TASKS_VISIBLE: usize = 3;
 const LYRIC_ROW: f32 = 19.0;
 
 impl App {
@@ -623,13 +623,13 @@ impl App {
         });
 
         if self.tasks.is_empty() {
-            c.f.text_center(cx, 90.0, 14.0, true, WHITE, a, "Nothing to do");
-            c.f.text_center(cx, 111.0, 12.0, false, WHITE, a * SOFT, "End a task with a time, like 15:30, to get a reminder.");
+            c.f.text_center(cx, 68.0, 14.0, true, WHITE, a, "Nothing to do");
+            c.f.text_center(cx, 89.0, 12.0, false, WHITE, a * SOFT, "End a task with a time, like 15:30, to get a reminder.");
         }
 
         for (slot, &i) in order.iter().skip(self.task_scroll).take(TASKS_VISIBLE).enumerate() {
             let task = &self.tasks[i];
-            let y = 44.0 + slot as f32 * 26.0;
+            let y = 42.0 + slot as f32 * 26.0;
             let hovered = matches!(c.hover, Some(Action::TaskToggle(j) | Action::TaskRemove(j)) if j == i);
             if hovered {
                 c.f.fill(rrect(x0 + 16.0, y, x1 - x0 - 32.0, 26.0, 9.0), WHITE, 0.06 * a);
@@ -660,39 +660,39 @@ impl App {
             c.hit(Action::TaskToggle(i), x0 + 16.0, y, x1 - x0 - 66.0, 26.0);
         }
 
-        // add task input bar
-        let (fx, fy, fw) = (x0 + 24.0, 150.0, x1 - x0 - 48.0);
+        // add task input bar comfortably above bottom curve
+        let (fx, fy, fw) = (x0 + 32.0, 124.0, x1 - x0 - 64.0);
         let bg = if self.editing {
-            0.13
+            0.14
         } else if c.hover == Some(Action::TaskInput) {
             0.10
         } else {
             0.06
         };
-        c.f.fill(rrect(fx, fy, fw, 24.0, 12.0), WHITE, bg * a);
+        c.f.fill(rrect(fx, fy, fw, 26.0, 13.0), WHITE, bg * a);
         if self.editing {
-            c.f.stroke(rrect(fx, fy, fw, 24.0, 12.0), 1.0, WHITE, 0.3 * a);
+            c.f.stroke(rrect(fx, fy, fw, 26.0, 13.0), 1.0, WHITE, 0.35 * a);
         }
-        c.f.icon(Icon::Plus, fx + 14.0, fy + 12.0, 10.0, WHITE, a * SOFT);
+        c.f.icon(Icon::Plus, fx + 14.0, fy + 13.0, 10.0, WHITE, a * SOFT);
         let text_x = fx + 28.0;
         let max_w = fw - 44.0;
         if self.draft.is_empty() {
             let hint = if self.editing { "Type and press Enter" } else { "Add a task… try “Stand-up 09:30”" };
-            c.f.text(text_x, fy + 16.5, 12.0, false, WHITE, a * SOFT * 0.85, hint);
+            c.f.text(text_x, fy + 17.5, 12.0, false, WHITE, a * SOFT * 0.85, hint);
         } else {
             // long text: show trailing portion where user is typing
             let mut shown: String = self.draft.clone();
             while c.f.width(&shown, 12.0, false) > max_w && !shown.is_empty() {
                 shown.remove(0);
             }
-            c.f.text(text_x, fy + 16.5, 12.0, false, WHITE, a, &shown);
+            c.f.text(text_x, fy + 17.5, 12.0, false, WHITE, a, &shown);
         }
         if self.editing && self.caret {
             let shown_w = c.f.width(&self.draft, 12.0, false).min(max_w);
             let cx = if self.draft.is_empty() { text_x } else { text_x + shown_w + 1.0 };
-            c.f.fill(rrect(cx, fy + 5.0, 1.5, 14.0, 0.75), WHITE, a);
+            c.f.fill(rrect(cx, fy + 6.0, 1.5, 14.0, 0.75), WHITE, a);
         }
-        c.hit(Action::TaskInput, fx, fy, fw, 24.0);
+        c.hit(Action::TaskInput, fx, fy, fw, 26.0);
     }
 
     fn draw_welcome(&mut self, c: &mut Ctx, x0: f32, x1: f32, _cx: f32, h: f32) {

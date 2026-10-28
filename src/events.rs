@@ -6,7 +6,7 @@ use windows::Win32::Media::Audio::{PlaySoundW, SND_ALIAS, SND_ASYNC};
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 
 const SHELF_VISIBLE: usize = 5;
-const TASKS_VISIBLE: usize = 4;
+const TASKS_VISIBLE: usize = 3;
 
 impl App {
     fn current_live(&self) -> Live {
