@@ -57,6 +57,20 @@ impl App {
             }
         }
 
+        // Shelf drag-in: ripples radiate outward from the notch outline (drawn unmasked, outside the body)
+        if self.drag_in {
+            let accent = self.accent();
+            let time = self.started.elapsed().as_secs_f32();
+            let stroke = sk::Stroke { width: 1.6, ..Default::default() };
+            for i in 0..3 {
+                let phase = (time * 1.7 + i as f32 / 3.0).fract();
+                let e = phase * 28.0;
+                let ring = notch_path(x0 - e, x1 + e, h + e, r + e * 0.6, EAR);
+                let alpha = (phase * std::f32::consts::PI).sin() * 0.55 * t;
+                pm.stroke_path(&ring, &solid(accent, alpha), &stroke, ts, None);
+            }
+        }
+
         // body: solid black when closed (blends into screen bezel), dark glass when open
         let mix = |a: [u8; 3]| a.map(|v| (v as f32 * t) as u8);
         let alpha = 1.0 - 0.04 * t;
@@ -701,17 +715,9 @@ impl App {
             let accent = self.accent();
 
             if active {
-                // AirDrop-style magnetic suction ripples
-                let t = self.started.elapsed().as_secs_f32();
-                for i in 0..3 {
-                    let wave = (t * 3.2 + i as f32 * 0.33).fract();
-                    let r = 24.0 + wave * 34.0;
-                    let wave_a = (1.0 - wave) * 0.35;
-                    c.f.circle(cx, 84.0, r, accent, wave_a * a);
-                }
-                c.f.fill(zone.clone(), accent, 0.12 * a);
-                c.f.stroke(zone, 1.8, accent, 0.70 * a);
-                c.f.icon(Icon::Tray, cx, 84.0, 26.0, accent, a);
+                // ripples live outside the notch (see render); inside, the tray icon bobs gently
+                let bob = (self.started.elapsed().as_secs_f32() * 9.0).sin() * 1.5;
+                c.f.icon(Icon::Tray, cx, 84.0 + bob, 26.0, accent, a);
                 c.f.text_center(cx, 124.0, 13.5, true, WHITE, a, "Release to add to Shelf");
                 c.f.text_center(cx, 143.0, 11.0, false, accent, 0.85 * a, "Drop anywhere to store");
             } else {

@@ -166,7 +166,7 @@ impl App {
             self.scroll.step(dt / steps, 0.92);
         }
         let springs = [self.w, self.h, self.r, self.scroll];
-        if springs.iter().all(Spring::done) && self.content_alpha() >= 1.0 {
+        if springs.iter().all(Spring::done) && self.content_alpha() >= 1.0 && !self.drag_in {
             for s in [&mut self.w, &mut self.h, &mut self.r, &mut self.scroll] {
                 s.snap();
             }
