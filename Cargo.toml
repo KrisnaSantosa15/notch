@@ -1,6 +1,6 @@
 [package]
 name = "notch"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 authors = ["Krisna Santosa"]
 description = "MacBook-like dynamic notch at the top edge of Windows 10/11 screens"

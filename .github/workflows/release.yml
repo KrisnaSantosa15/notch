@@ -34,7 +34,5 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            notch-windows-x86_64.zip
-            winget/KrisnaSantosa15.notch.yaml
+          files: notch-windows-x86_64.zip
           generate_release_notes: true
