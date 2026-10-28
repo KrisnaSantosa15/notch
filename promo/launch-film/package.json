@@ -2,7 +2,7 @@
   "name": "notch-launch-film",
   "private": true,
   "description": "Deterministic HTML/Canvas source for the Notch launch film (https://youtu.be/evf-Ct_pw5A)",
-  "license": "AGPL-3.0-only",
+  "license": "AGPL-3.0-or-later",
   "scripts": {
     "stills": "node render.mjs stills 2.4 7.2 11.9 13.95 19.9",
     "video": "node render.mjs film",
