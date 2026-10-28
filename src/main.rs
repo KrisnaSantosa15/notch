@@ -182,7 +182,7 @@ impl Spring {
         Self { x, v: 0.0, to: x }
     }
     fn step(&mut self, dt: f32, zeta: f32) {
-        const K: f32 = 230.0;
+        const K: f32 = 360.0;
         let a = K * (self.to - self.x) - 2.0 * K.sqrt() * zeta * self.v;
         self.v += a * dt;
         self.x += self.v * dt;

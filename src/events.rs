@@ -128,7 +128,7 @@ impl App {
     /// Small outward pulse, indicating updated content.
     fn bump(&mut self) {
         if !self.open {
-            self.w.v += 240.0;
+            self.w.v += 60.0;
             self.retarget();
         }
     }
@@ -156,14 +156,14 @@ impl App {
         let now = Instant::now();
         let dt = now.duration_since(self.last_frame).as_secs_f32().min(0.05);
         self.last_frame = now;
-        // opening = slightly bouncy, closing = calmer
-        let zeta = if self.open { 0.62 } else { 0.75 };
+        // Snappy, solid Apple-grade spring: high stiffness, critically damped (zero jelly wobbling)
+        let zeta = if self.open { 0.88 } else { 0.94 };
         let steps = (dt * 240.0).ceil().max(1.0);
         for _ in 0..steps as u32 {
             for s in [&mut self.w, &mut self.h, &mut self.r] {
                 s.step(dt / steps, zeta);
             }
-            self.scroll.step(dt / steps, 0.9);
+            self.scroll.step(dt / steps, 0.92);
         }
         let springs = [self.w, self.h, self.r, self.scroll];
         if springs.iter().all(Spring::done) && self.content_alpha() >= 1.0 {
@@ -504,6 +504,7 @@ impl App {
         if let Some((level, muted)) = system::nudge_volume(delta as f32 / 120.0 * 0.04) {
             self.play_sound(system::Sound::Tick);
             self.show_hud(Hud::Volume(level, muted));
+            self.redraw();
         }
     }
 
@@ -671,7 +672,10 @@ impl App {
                         self.open = false;
                         self.hover = None;
                     }
-                    TIMER_HUD => self.hud = None,
+                    TIMER_HUD => {
+                        self.hud = None;
+                        self.redraw();
+                    }
                     TIMER_ALERT => {
                         self.alert = false;
                         self.reminder = None;

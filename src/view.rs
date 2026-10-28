@@ -131,11 +131,9 @@ impl App {
                 }
             }
 
-            // Bottom-rim ambient progress line for active Pomodoro or Media
+            // Bottom-rim ambient progress line for active Pomodoro
             let progress = if self.focus.running() {
                 Some(self.focus.progress())
-            } else if self.info.playing && self.info.duration > 0.0 {
-                Some(((self.info.position / self.info.duration) as f32).clamp(0.0, 1.0))
             } else {
                 None
             };
@@ -404,26 +402,56 @@ impl App {
         }
 
         let a = c.a;
-        let now = unsafe { GetLocalTime() };
-        let clock = format!("{:02}:{:02}", now.wHour, now.wMinute);
-        let right = c.f.text_right(x1 - 26.0, 29.0, 13.0, true, WHITE, a, &clock);
-        let left_info = match self.battery {
-            Some((charging, pct)) => {
-                c.f.icon(Icon::Battery(pct as f32 / 100.0, charging), right - 20.0, 24.5, 16.0, WHITE, a);
-                c.f.text_right(right - 33.0, 29.0, 12.0, false, WHITE, a * SOFT, &format!("{pct}%"))
-            }
-            None => {
-                let day = format!("{} {}", DAYS[now.wDayOfWeek as usize % 7], now.wDay);
-                c.f.text_right(right - 8.0, 29.0, 13.0, false, WHITE, a * SOFT, &day)
-            }
-        };
+        if let Some(Hud::Volume(level, muted)) = self.hud {
+            let accent = self.accent();
+            let waves = if muted || level <= 0.0 { 0 } else { 1 + (level * 2.99) as u8 };
+            let vol_txt = if muted { "Muted".to_string() } else { format!("{}%", (level * 100.0).round()) };
+            let pill_w = 124.0;
+            let pill_h = 24.0;
+            let pill_x = x1 - 26.0 - pill_w;
+            let pill_y = 12.0;
 
-        // System stats (CPU & RAM) displayed subtly in the header gap
-        if self.stats.1 > 0 {
-            let stats_text = format!("CPU {}%  RAM {}%", self.stats.0, self.stats.1);
-            let stats_w = c.f.width(&stats_text, 11.0, false);
-            if left_info - stats_w - 16.0 > x {
-                c.f.text_right(left_info - 16.0, 29.0, 11.0, false, WHITE, a * SOFT * 0.75, &stats_text);
+            // Sleek volume capsule
+            c.f.fill(rrect(pill_x, pill_y, pill_w, pill_h, 12.0), WHITE, 0.12 * a);
+            c.f.stroke(rrect(pill_x, pill_y, pill_w, pill_h, 12.0), 1.0, accent, 0.35 * a);
+
+            // Speaker icon
+            c.f.icon(Icon::Speaker(waves), pill_x + 14.0, pill_y + 12.0, 14.0, WHITE, a);
+
+            // Mini level bar
+            let bar_x = pill_x + 28.0;
+            let bar_w = 50.0;
+            let bar_y = pill_y + 10.0;
+            c.f.fill(rrect(bar_x, bar_y, bar_w, 4.0, 2.0), WHITE, 0.20 * a);
+            let fill_w = if muted { 0.0 } else { bar_w * level };
+            if fill_w > 0.0 {
+                c.f.fill(rrect(bar_x, bar_y, fill_w, 4.0, 2.0), accent, a);
+            }
+
+            // Percentage text
+            c.f.text_right(pill_x + pill_w - 8.0, pill_y + 16.5, 11.0, true, WHITE, a, &vol_txt);
+        } else {
+            let now = unsafe { GetLocalTime() };
+            let clock = format!("{:02}:{:02}", now.wHour, now.wMinute);
+            let right = c.f.text_right(x1 - 26.0, 29.0, 13.0, true, WHITE, a, &clock);
+            let left_info = match self.battery {
+                Some((charging, pct)) => {
+                    c.f.icon(Icon::Battery(pct as f32 / 100.0, charging), right - 20.0, 24.5, 16.0, WHITE, a);
+                    c.f.text_right(right - 33.0, 29.0, 12.0, false, WHITE, a * SOFT, &format!("{pct}%"))
+                }
+                None => {
+                    let day = format!("{} {}", DAYS[now.wDayOfWeek as usize % 7], now.wDay);
+                    c.f.text_right(right - 8.0, 29.0, 13.0, false, WHITE, a * SOFT, &day)
+                }
+            };
+
+            // System stats (CPU & RAM) displayed subtly in the header gap
+            if self.stats.1 > 0 {
+                let stats_text = format!("CPU {}%  RAM {}%", self.stats.0, self.stats.1);
+                let stats_w = c.f.width(&stats_text, 11.0, false);
+                if left_info - stats_w - 16.0 > x {
+                    c.f.text_right(left_info - 16.0, 29.0, 11.0, false, WHITE, a * SOFT * 0.75, &stats_text);
+                }
             }
         }
 
