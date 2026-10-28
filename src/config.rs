@@ -216,7 +216,7 @@ impl Config {
     pub fn save(&self) {
         if let Some(path) = path() {
             if let Ok(content) = toml::to_string_pretty(self) {
-                let _ = std::fs::write(path, content);
+                crate::store::write_atomic(&path, &content);
             }
         }
     }

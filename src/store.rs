@@ -69,7 +69,15 @@ pub fn save(welcomed: bool, lyrics: bool, preset: u32, files: &[String], tasks: 
     if let Some(dir) = path.parent() {
         let _ = std::fs::create_dir_all(dir);
     }
-    let _ = std::fs::write(path, out);
+    write_atomic(&path, &out);
+}
+
+/// Writes via a temp file and rename, so a crash mid-write never leaves a truncated file.
+pub fn write_atomic(path: &std::path::Path, contents: &str) {
+    let tmp = path.with_extension("tmp");
+    if std::fs::write(&tmp, contents).is_ok() {
+        let _ = std::fs::rename(&tmp, path);
+    }
 }
 
 #[cfg(test)]
