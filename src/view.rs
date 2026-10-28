@@ -44,6 +44,19 @@ impl App {
             }
         }
 
+        // Feature 1B: Ambient backdrop underglow during music playback
+        if self.info.playing {
+            let accent = self.accent();
+            let pulse = (self.started.elapsed().as_secs_f32() * 2.2).sin() * 0.15 + 0.85;
+            for i in 1..=4 {
+                let spread = i as f32 * 3.2;
+                let alpha = (0.040 / i as f32) * pulse;
+                if let Some(p) = rrect(x0 - spread, -r, w + spread * 2.0, h + r + spread + 2.0, r + spread) {
+                    pm.fill_path(&p, &solid(accent, alpha), sk::FillRule::Winding, ts, None);
+                }
+            }
+        }
+
         // body: solid black when closed (blends into screen bezel), dark glass when open
         let mix = |a: [u8; 3]| a.map(|v| (v as f32 * t) as u8);
         let alpha = 1.0 - 0.04 * t;
