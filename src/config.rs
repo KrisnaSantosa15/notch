@@ -204,7 +204,9 @@ pub fn load() -> Config {
         Ok(content) => match toml::from_str::<Config>(&content) {
             Ok(cfg) => cfg,
             Err(e) => {
-                eprintln!("Failed to parse config.toml: {e}. Using defaults.");
+                // keep the broken file, otherwise the next in-app setting change would overwrite it
+                eprintln!("Failed to parse config.toml: {e}. Using defaults, kept as config.toml.bad.");
+                let _ = std::fs::rename(&path, path.with_extension("toml.bad"));
                 Config::default()
             }
         },
