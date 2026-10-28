@@ -441,6 +441,15 @@ impl App {
                 self.play_sound(system::Sound::Pop);
                 self.redraw();
             }
+            Action::SettingsResetDefaults => {
+                self.config = config::Config::default();
+                self.config.save();
+                self.play_sound(system::Sound::Pop);
+                self.relayout();
+                self.retarget();
+                self.start_animation();
+                self.redraw();
+            }
             Action::SettingsOpenConfig => {
                 if let Some(path) = config::path() {
                     shelf::open(&path.to_string_lossy());

@@ -770,14 +770,22 @@ impl App {
             sx += sw_w + 8.0;
         }
 
-        // Clean link to config.toml on the right side of Row 1 (no broken unicode arrow glyphs)
+        // Clean links on the right side of Row 1: Reset to default & config.toml
         let cfg_label = "config.toml";
         let cfg_w = c.f.width(cfg_label, 11.0, true) + 20.0;
         let cfg_x = x1 - 26.0 - cfg_w;
         let cfg_hover = c.hover == Some(Action::SettingsOpenConfig);
         c.f.fill(rrect(cfg_x, 50.0, cfg_w, 24.0, 12.0), WHITE, if cfg_hover { 0.12 } else { 0.05 } * a);
-        c.f.text(cfg_x + 10.0, 66.0, 11.0, true, WHITE, if cfg_hover { 0.9 } else { 0.5 } * a, cfg_label);
+        c.f.text(cfg_x + 10.0, 66.0, 11.0, true, WHITE, if cfg_hover { 0.95 } else { 0.50 } * a, cfg_label);
         c.hit(Action::SettingsOpenConfig, cfg_x, 50.0, cfg_w, 24.0);
+
+        let rst_label = "Reset";
+        let rst_w = c.f.width(rst_label, 11.0, true) + 20.0;
+        let rst_x = cfg_x - 8.0 - rst_w;
+        let rst_hover = c.hover == Some(Action::SettingsResetDefaults);
+        c.f.fill(rrect(rst_x, 50.0, rst_w, 24.0, 12.0), WHITE, if rst_hover { 0.12 } else { 0.05 } * a);
+        c.f.text(rst_x + 10.0, 66.0, 11.0, true, WHITE, if rst_hover { 0.95 } else { 0.50 } * a, rst_label);
+        c.hit(Action::SettingsResetDefaults, rst_x, 50.0, rst_w, 24.0);
 
         // Row 2 (y = 82..106): MODULES (TABS)
         c.f.text(left, 97.0, 10.5, true, WHITE, 0.45 * a, "TABS");
