@@ -69,6 +69,7 @@ enum Tab {
     Focus,
     Shelf,
     Tasks,
+    Settings,
 }
 
 /// Everything clickable in the open notch.
@@ -92,6 +93,10 @@ enum Action {
     TaskInput,
     OpenUpdate,
     DismissWelcome,
+    SettingsAccent(usize),
+    SettingsToggleSound,
+    SettingsToggleFullscreen,
+    SettingsOpenConfig,
 }
 
 /// Brief HUD message that appears for ~2 seconds then disappears.
@@ -284,6 +289,7 @@ impl App {
             Tab::Focus => self.config.tabs.focus,
             Tab::Shelf => self.config.tabs.shelf,
             Tab::Tasks => self.config.tabs.tasks,
+            Tab::Settings => true,
         }
     }
 

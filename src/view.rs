@@ -82,6 +82,7 @@ impl App {
                 Tab::Focus => self.draw_focus(&mut c, x0, x1),
                 Tab::Shelf => self.draw_shelf(&mut c, x0, x1, cx),
                 Tab::Tasks => self.draw_tasks(&mut c, x0, x1, cx),
+                Tab::Settings => self.draw_settings(&mut c, x0, x1, cx),
             }
             if self.welcome_banner {
                 self.draw_welcome(&mut c, x0, x1, cx, h);
@@ -236,6 +237,7 @@ impl App {
         if self.config.tabs.tasks {
             tabs.push((Tab::Tasks, "Tasks", open_tasks));
         }
+        tabs.push((Tab::Settings, "Settings", 0));
         let mut x = x0 + 22.0;
         for (tab, label, count) in tabs {
             let badge = (count > 0).then(|| count.to_string());
@@ -646,6 +648,104 @@ impl App {
         c.f.text_center(btn_x + btn_w / 2.0, btn_y + 14.0, 11.0, true, WHITE, a, "Got it");
 
         c.hit(Action::DismissWelcome, btn_x, btn_y, btn_w, 20.0);
+    }
+
+    fn draw_settings(&mut self, c: &mut Ctx, x0: f32, x1: f32, _cx: f32) {
+        let a = c.a;
+        let left = x0 + 26.0;
+
+        // Row 1: THEME ACCENT
+        c.f.text(left, 62.0, 11.0, true, WHITE, 0.5 * a, "THEME ACCENT");
+
+        let accents: [(&str, [u8; 3]); 6] = [
+            ("Auto", [180, 180, 190]),
+            ("Blue", [0x3B, 0x82, 0xF6]),
+            ("Green", [0x10, 0xB9, 0x81]),
+            ("Purple", [0x8B, 0x5C, 0xF6]),
+            ("Orange", [0xF9, 0x73, 0x16]),
+            ("Red", [0xEF, 0x44, 0x44]),
+        ];
+
+        let mut sx = left;
+        let sy = 70.0;
+        let is_auto = self.config.theme.accent_mode.eq_ignore_ascii_case("album_art");
+        for (i, (name, color)) in accents.iter().enumerate() {
+            let is_sel = if i == 0 {
+                is_auto
+            } else {
+                !is_auto && self.config.theme.custom_accent.to_uppercase().contains(match i {
+                    1 => "3B82F6",
+                    2 => "10B981",
+                    3 => "8B5CF6",
+                    4 => "F97316",
+                    _ => "EF4444",
+                })
+            };
+
+            let sw_w = if i == 0 { 48.0 } else { 22.0 };
+            let sw_h = 22.0;
+
+            if is_sel {
+                c.f.fill(rrect(sx - 2.0, sy - 2.0, sw_w + 4.0, sw_h + 4.0, 7.0), WHITE, 0.9 * a);
+            }
+            if i == 0 {
+                let bg = if is_sel { 0.9 } else { 0.2 };
+                let txt_color = if is_sel { BLACK } else { WHITE };
+                c.f.fill(rrect(sx, sy, sw_w, sw_h, 5.0), WHITE, bg * a);
+                c.f.text_center(sx + sw_w / 2.0, sy + 15.0, 11.0, true, txt_color, a, name);
+            } else {
+                c.f.fill(rrect(sx, sy, sw_w, sw_h, 5.0), *color, a);
+            }
+
+            c.hit(Action::SettingsAccent(i), sx, sy, sw_w, sw_h);
+            sx += sw_w + 10.0;
+        }
+
+        // Row 2: BEHAVIOR
+        c.f.text(left, 114.0, 11.0, true, WHITE, 0.5 * a, "BEHAVIOR");
+
+        let sound_txt = if self.config.behavior.sound_effects {
+            "Audio Haptics: ON"
+        } else {
+            "Audio Haptics: OFF"
+        };
+        let w_sound = c.pill(
+            Action::SettingsToggleSound,
+            left,
+            122.0,
+            sound_txt,
+            None,
+            self.config.behavior.sound_effects,
+            false,
+        );
+
+        let fs_txt = if self.config.behavior.auto_hide_fullscreen {
+            "Auto-Hide Fullscreen: ON"
+        } else {
+            "Auto-Hide Fullscreen: OFF"
+        };
+        c.pill(
+            Action::SettingsToggleFullscreen,
+            left + w_sound + 8.0,
+            122.0,
+            fs_txt,
+            None,
+            self.config.behavior.auto_hide_fullscreen,
+            false,
+        );
+
+        // Row 3: CONFIG & VERSION
+        c.pill(
+            Action::SettingsOpenConfig,
+            left,
+            156.0,
+            "Open config.toml",
+            None,
+            false,
+            false,
+        );
+        let ver = format!("Notch v{}", env!("CARGO_PKG_VERSION"));
+        c.f.text_right(x1 - 26.0, 172.0, 11.0, true, WHITE, 0.45 * a, &ver);
     }
 }
 

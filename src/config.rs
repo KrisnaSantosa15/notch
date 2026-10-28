@@ -212,6 +212,16 @@ pub fn load() -> Config {
     }
 }
 
+impl Config {
+    pub fn save(&self) {
+        if let Some(path) = path() {
+            if let Ok(content) = toml::to_string_pretty(self) {
+                let _ = std::fs::write(path, content);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,5 +260,14 @@ mod tests {
         assert_eq!(parse_hex_color("3b82f6"), Some([0x3B, 0x82, 0xF6]));
         assert_eq!(parse_hex_color("#fff"), Some([255, 255, 255]));
         assert_eq!(parse_hex_color("invalid"), None);
+    }
+
+    #[test]
+    fn config_serializes_and_deserializes() {
+        let mut cfg = Config::default();
+        cfg.theme.custom_accent = "#10B981".to_string();
+        let s = toml::to_string_pretty(&cfg).expect("Serialization must succeed");
+        let parsed: Config = toml::from_str(&s).expect("Deserialization must succeed");
+        assert_eq!(parsed.theme.custom_accent, "#10B981");
     }
 }

@@ -345,6 +345,52 @@ impl App {
                 self.play_sound(system::Sound::Pop);
                 self.redraw();
             }
+            Action::SettingsAccent(i) => {
+                match i {
+                    0 => self.config.theme.accent_mode = "album_art".to_string(),
+                    1 => {
+                        self.config.theme.accent_mode = "custom".to_string();
+                        self.config.theme.custom_accent = "#3B82F6".to_string();
+                    }
+                    2 => {
+                        self.config.theme.accent_mode = "custom".to_string();
+                        self.config.theme.custom_accent = "#10B981".to_string();
+                    }
+                    3 => {
+                        self.config.theme.accent_mode = "custom".to_string();
+                        self.config.theme.custom_accent = "#8B5CF6".to_string();
+                    }
+                    4 => {
+                        self.config.theme.accent_mode = "custom".to_string();
+                        self.config.theme.custom_accent = "#F97316".to_string();
+                    }
+                    _ => {
+                        self.config.theme.accent_mode = "custom".to_string();
+                        self.config.theme.custom_accent = "#EF4444".to_string();
+                    }
+                }
+                self.config.save();
+                self.play_sound(system::Sound::Pop);
+                self.redraw();
+            }
+            Action::SettingsToggleSound => {
+                self.config.behavior.sound_effects = !self.config.behavior.sound_effects;
+                self.config.save();
+                self.play_sound(system::Sound::Pop);
+                self.redraw();
+            }
+            Action::SettingsToggleFullscreen => {
+                self.config.behavior.auto_hide_fullscreen = !self.config.behavior.auto_hide_fullscreen;
+                self.config.save();
+                self.play_sound(system::Sound::Pop);
+                self.redraw();
+            }
+            Action::SettingsOpenConfig => {
+                if let Some(path) = config::path() {
+                    shelf::open(&path.to_string_lossy());
+                }
+                self.play_sound(system::Sound::Pop);
+            }
         }
         self.sync_lyric();
         self.retarget();
