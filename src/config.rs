@@ -100,6 +100,8 @@ pub struct BehaviorConfig {
     pub hover_to_open: bool,
     /// Whether to automatically hide notch during fullscreen apps/games/videos (default: true)
     pub auto_hide_fullscreen: bool,
+    /// Whether to play subtle tactile sound effects on interactions (default: true)
+    pub sound_effects: bool,
 }
 
 impl Default for BehaviorConfig {
@@ -108,6 +110,7 @@ impl Default for BehaviorConfig {
             auto_close_delay_ms: 260,
             hover_to_open: true,
             auto_hide_fullscreen: true,
+            sound_effects: true,
         }
     }
 }
@@ -179,6 +182,9 @@ hover_to_open = true
 
 # Whether to automatically hide notch during fullscreen apps, games, or videos
 auto_hide_fullscreen = true
+
+# Whether to play subtle tactile sound effects on interactions (e.g. Pomodoro, shelf, tasks)
+sound_effects = true
 "##;
 
 pub fn load() -> Config {
@@ -219,6 +225,7 @@ mod tests {
         assert_eq!(cfg.theme.accent_mode, "album_art");
         assert_eq!(cfg.behavior.auto_close_delay_ms, 260);
         assert!(cfg.behavior.auto_hide_fullscreen);
+        assert!(cfg.behavior.sound_effects);
     }
 
     #[test]

@@ -50,6 +50,12 @@ impl App {
         }
     }
 
+    pub(crate) fn play_sound(&self, sound: system::Sound) {
+        if self.config.behavior.sound_effects {
+            system::play_sound(sound);
+        }
+    }
+
     /// Toggle notch between open and closed state (e.g. from hotkey or tray).
     pub(crate) fn toggle_open(&mut self) {
         self.open = !self.open;
@@ -235,14 +241,19 @@ impl App {
             self.stop_editing();
         }
         match action {
-            Action::Tab(tab) => self.tab = tab,
+            Action::Tab(tab) => {
+                self.play_sound(system::Sound::Pop);
+                self.tab = tab;
+            }
             Action::Prev => self.media.send(media::Cmd::Prev),
             Action::Next => self.media.send(media::Cmd::Next),
             Action::Toggle => {
+                self.play_sound(system::Sound::Pop);
                 self.media.send(media::Cmd::Toggle);
                 self.info.playing = !self.info.playing; // update immediately, corrected by media thread
             }
             Action::LyricsToggle => {
+                self.play_sound(system::Sound::Pop);
                 self.lyrics_on = !self.lyrics_on;
                 self.media.set_lyrics(self.lyrics_on);
                 self.lyric_layout = None;
@@ -257,9 +268,16 @@ impl App {
                     self.seek(t);
                 }
             }
-            Action::FocusToggle => self.focus.toggle(),
-            Action::FocusReset => self.focus.reset(),
+            Action::FocusToggle => {
+                self.play_sound(system::Sound::Pop);
+                self.focus.toggle();
+            }
+            Action::FocusReset => {
+                self.play_sound(system::Sound::Pop);
+                self.focus.reset();
+            }
             Action::Preset(m) => {
+                self.play_sound(system::Sound::Pop);
                 self.focus = Focus::new(m);
                 self.save();
             }
@@ -270,24 +288,36 @@ impl App {
             }
             Action::ShelfRemove(i) => {
                 if i < self.shelf.len() {
+                    self.play_sound(system::Sound::Pop);
                     self.shelf.remove(i);
                     self.clamp_scroll();
                     self.save();
                 }
             }
             Action::ShelfClear => {
+                self.play_sound(system::Sound::Pop);
                 self.shelf.clear();
                 self.shelf_scroll = 0;
                 self.save();
             }
             Action::TaskToggle(i) => {
+                let mut toggled = None;
                 if let Some(t) = self.tasks.get_mut(i) {
                     t.done = !t.done;
+                    toggled = Some(t.done);
+                }
+                if let Some(done) = toggled {
                     self.save();
+                    self.play_sound(if done {
+                        system::Sound::Chime
+                    } else {
+                        system::Sound::Pop
+                    });
                 }
             }
             Action::TaskRemove(i) => {
                 if i < self.tasks.len() {
+                    self.play_sound(system::Sound::Pop);
                     self.tasks.remove(i);
                     self.clamp_scroll();
                     self.save();
@@ -362,6 +392,7 @@ impl App {
             }
         }
         self.shelf_scroll = self.shelf.len().saturating_sub(SHELF_VISIBLE);
+        self.play_sound(system::Sound::Drop);
         self.save();
         self.schedule_close(1400); // let the result stay visible for a moment
         self.retarget();
@@ -535,6 +566,7 @@ impl App {
             if self.focus.remaining() <= 0.0 {
                 self.focus.reset();
                 self.alert = !self.open;
+                self.play_sound(system::Sound::Chime);
                 self.notify();
             }
         }
@@ -544,6 +576,7 @@ impl App {
         if let Some(task) = self.tasks.iter_mut().find(|t| !t.done && !t.notified && t.due.is_some_and(|d| d <= now)) {
             task.notified = true;
             self.reminder = (!self.open).then(|| task.text.clone());
+            self.play_sound(system::Sound::Chime);
             self.notify();
             dirty = true;
         }

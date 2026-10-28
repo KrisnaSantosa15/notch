@@ -8,6 +8,7 @@ use windows::Win32::Media::Audio::Endpoints::{
 };
 use windows::Win32::Media::Audio::{
     eConsole, eRender, AUDIO_VOLUME_NOTIFICATION_DATA, IMMDeviceEnumerator, MMDeviceEnumerator,
+    PlaySoundW, SND_ASYNC, SND_MEMORY,
 };
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -399,5 +400,94 @@ pub fn set_autostart(on: bool) {
             Some(value.as_ptr() as *const _),
             (value.len() * 2) as u32,
         );
+    }
+}
+
+// ---- Tactile sound effects (in-memory WAV via PlaySoundW) --------------------------------
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Sound {
+    Pop,
+    Chime,
+    Drop,
+}
+
+static POP_WAV: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+static CHIME_WAV: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+static DROP_WAV: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+
+fn generate_wav<F: Fn(f32) -> f32>(duration_ms: u32, sample_rate: u32, generator: F) -> Vec<u8> {
+    let num_samples = (sample_rate * duration_ms / 1000) as usize;
+    let byte_rate = sample_rate * 2;
+    let data_len = (num_samples * 2) as u32;
+    let file_len = 36 + data_len;
+    let mut data = Vec::with_capacity(44 + num_samples * 2);
+
+    data.extend_from_slice(b"RIFF");
+    data.extend_from_slice(&file_len.to_le_bytes());
+    data.extend_from_slice(b"WAVE");
+
+    data.extend_from_slice(b"fmt ");
+    data.extend_from_slice(&16u32.to_le_bytes());
+    data.extend_from_slice(&1u16.to_le_bytes());
+    data.extend_from_slice(&1u16.to_le_bytes());
+    data.extend_from_slice(&sample_rate.to_le_bytes());
+    data.extend_from_slice(&byte_rate.to_le_bytes());
+    data.extend_from_slice(&2u16.to_le_bytes());
+    data.extend_from_slice(&16u16.to_le_bytes());
+
+    data.extend_from_slice(b"data");
+    data.extend_from_slice(&data_len.to_le_bytes());
+
+    for i in 0..num_samples {
+        let t = i as f32 / sample_rate as f32;
+        let s = generator(t).clamp(-1.0, 1.0);
+        let sample = (s * 32767.0) as i16;
+        data.extend_from_slice(&sample.to_le_bytes());
+    }
+    data
+}
+
+pub fn play_sound(sound: Sound) {
+    let wav = match sound {
+        Sound::Pop => POP_WAV.get_or_init(|| {
+            generate_wav(22, 22050, |t| {
+                let env = (-t * 190.0).exp();
+                (t * (2400.0 - t * 40000.0) * std::f32::consts::TAU).sin() * env * 0.45
+            })
+        }),
+        Sound::Chime => CHIME_WAV.get_or_init(|| {
+            generate_wav(120, 22050, |t| {
+                let env = (-t * 30.0).exp();
+                ((t * 880.0 * std::f32::consts::TAU).sin() * 0.6
+                    + (t * 1760.0 * std::f32::consts::TAU).sin() * 0.4)
+                    * env
+                    * 0.4
+            })
+        }),
+        Sound::Drop => DROP_WAV.get_or_init(|| {
+            generate_wav(35, 22050, |t| {
+                let env = (-t * 110.0).exp();
+                (t * 220.0 * std::f32::consts::TAU).sin() * env * 0.5
+            })
+        }),
+    };
+    unsafe {
+        let _ = PlaySoundW(PCWSTR(wav.as_ptr() as *const u16), None, SND_ASYNC | SND_MEMORY);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_wav_generation() {
+        let wav = generate_wav(20, 22050, |_t| 0.0);
+        assert!(wav.len() >= 44);
+        assert_eq!(&wav[0..4], b"RIFF");
+        assert_eq!(&wav[8..12], b"WAVE");
+        assert_eq!(&wav[12..16], b"fmt ");
+        assert_eq!(&wav[36..40], b"data");
     }
 }
