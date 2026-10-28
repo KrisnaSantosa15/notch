@@ -761,11 +761,14 @@ impl App {
             self.battery = system::battery();
         }
 
-        let privacy = system::privacy_status();
-        if privacy != self.privacy {
-            self.privacy = privacy;
-            self.bump();
-            dirty = true;
+        // walks the camera/mic consent registry trees: every 3 s is plenty for an indicator
+        if self.tick % 3 == 0 {
+            let privacy = system::privacy_status();
+            if privacy != self.privacy {
+                self.privacy = privacy;
+                self.bump();
+                dirty = true;
+            }
         }
 
         if self.tick % 2 == 0 {
