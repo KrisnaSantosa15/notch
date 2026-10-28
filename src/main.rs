@@ -269,6 +269,8 @@ struct App {
     caret: bool,
 
     fonts: Option<text::Fonts>,
+    /// Pixmap + mask reused across frames instead of reallocating the whole canvas each render.
+    canvas: Option<(sk::Pixmap, sk::Mask)>,
     pub(crate) config: config::Config,
     pub(crate) welcomed: bool,
     pub(crate) welcome_tour: bool,
@@ -624,6 +626,7 @@ fn main() -> Result<()> {
             draft_time_since: None,
             caret: true,
             fonts: Some(text::Fonts::load()),
+            canvas: None,
             config: cfg,
             welcomed: saved.welcomed,
             welcome_tour: !saved.welcomed,

@@ -23,7 +23,12 @@ impl App {
         let t = ((h - closed_h) / (open_h - closed_h).max(1.0)).clamp(0.0, 1.0);
         self.update_blur(x0, x1, h, r, t);
 
-        let mut pm = sk::Pixmap::new(self.pw, self.ph).unwrap();
+        let (mut pm, mut mask) = match self.canvas.take() {
+            Some((pm, mask)) if pm.width() == self.pw && pm.height() == self.ph => (pm, mask),
+            _ => (sk::Pixmap::new(self.pw, self.ph).unwrap(), sk::Mask::new(self.pw, self.ph).unwrap()),
+        };
+        pm.fill(sk::Color::TRANSPARENT);
+        mask.data_mut().fill(0);
         let ts = sk::Transform::from_scale(s, s);
         let shape = notch_path(x0, x1, h, r, EAR);
 
@@ -89,7 +94,6 @@ impl App {
             pm.fill_path(sp, &body, sk::FillRule::Winding, ts, None);
         }
 
-        let mut mask = sk::Mask::new(self.pw, self.ph).unwrap();
         mask.fill_path(&shape, sk::FillRule::Winding, true, ts);
         if let Some(ref sp) = sat_path {
             mask.fill_path(sp, sk::FillRule::Winding, true, ts);
@@ -186,7 +190,7 @@ impl App {
             }
         }
 
-        let pm = f.pm;
+        let Frame { pm, mask, .. } = f;
         self.fonts = Some(fonts);
         self.hits = hits;
         // debug: NOTCH_DUMP=path.png dumps the last frame
@@ -194,6 +198,7 @@ impl App {
             let _ = pm.save_png(path);
         }
         self.present(&pm);
+        self.canvas = Some((pm, mask));
     }
 
     // ---- Closed notch -----------------------------------------------------------------------
