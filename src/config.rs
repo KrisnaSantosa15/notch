@@ -122,6 +122,9 @@ pub fn path() -> Option<PathBuf> {
 /// Parses hex color strings like "#3B82F6", "3B82F6", "#FFF", or "FFF".
 pub fn parse_hex_color(hex: &str) -> Option<[u8; 3]> {
     let s = hex.trim().trim_start_matches('#');
+    if !s.is_ascii() {
+        return None; // byte slicing below would split a multi-byte char
+    }
     if s.len() == 6 {
         let r = u8::from_str_radix(&s[0..2], 16).ok()?;
         let g = u8::from_str_radix(&s[2..4], 16).ok()?;
@@ -262,6 +265,7 @@ mod tests {
         assert_eq!(parse_hex_color("3b82f6"), Some([0x3B, 0x82, 0xF6]));
         assert_eq!(parse_hex_color("#fff"), Some([255, 255, 255]));
         assert_eq!(parse_hex_color("invalid"), None);
+        assert_eq!(parse_hex_color("aéé1"), None);
     }
 
     #[test]
