@@ -307,7 +307,7 @@ impl App {
                     hits.push((Action::Tab(Tab::Music), r));
                 }
 
-                if self.hovering && self.info.has_session {
+                if self.hover_ready && self.info.has_session {
                     let avail_w = (x1 - x0 - 130.0).max(40.0);
                     let title = if self.info.title.is_empty() {
                         "Playing Media"

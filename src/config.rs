@@ -96,6 +96,8 @@ impl Default for ThemeConfig {
 pub struct BehaviorConfig {
     /// Auto-close delay in milliseconds when cursor leaves notch (default: 260)
     pub auto_close_delay_ms: u32,
+    /// Hover delay in milliseconds before opening the closed notch (default: 120)
+    pub hover_delay_ms: u32,
     /// Whether hovering mouse cursor over closed notch automatically opens it (default: true)
     pub hover_to_open: bool,
     /// Whether to automatically hide notch during fullscreen apps/games/videos (default: true)
@@ -108,6 +110,7 @@ impl Default for BehaviorConfig {
     fn default() -> Self {
         Self {
             auto_close_delay_ms: 260,
+            hover_delay_ms: 120,
             hover_to_open: true,
             auto_hide_fullscreen: true,
             sound_effects: true,
@@ -180,6 +183,9 @@ custom_accent = "#3B82F6"
 # Duration in milliseconds to wait before closing notch when cursor leaves
 auto_close_delay_ms = 260
 
+# Duration in milliseconds cursor must rest on the closed notch before it opens
+hover_delay_ms = 120
+
 # Whether hovering mouse cursor over closed notch automatically opens it
 hover_to_open = true
 
@@ -233,6 +239,7 @@ impl Config {
         n.corner_radius = fix(n.corner_radius, d.corner_radius, 0.0, n.closed_height / 2.0);
         n.open_radius = fix(n.open_radius, d.open_radius, 0.0, 80.0);
         self.behavior.auto_close_delay_ms = self.behavior.auto_close_delay_ms.min(10_000);
+        self.behavior.hover_delay_ms = self.behavior.hover_delay_ms.min(2_000);
     }
 
     pub fn save(&self) {
@@ -256,6 +263,7 @@ mod tests {
         assert!(cfg.tabs.media);
         assert_eq!(cfg.theme.accent_mode, "album_art");
         assert_eq!(cfg.behavior.auto_close_delay_ms, 260);
+        assert_eq!(cfg.behavior.hover_delay_ms, 120);
         assert!(cfg.behavior.auto_hide_fullscreen);
         assert!(cfg.behavior.sound_effects);
     }

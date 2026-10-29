@@ -43,7 +43,7 @@ impl App {
             Live::Welcome => 340.0,
             Live::Timer => 236.0,
             Live::Media | Live::Lyric => {
-                if self.hovering && !self.open && self.info.has_session {
+                if self.hover_ready && !self.open && self.info.has_session {
                     330.0
                 } else if live == Live::Lyric {
                     let text = self.lyric_text().unwrap_or("").to_string();
@@ -79,6 +79,7 @@ impl App {
             self.reminder = None;
         } else {
             self.hovering = false;
+            self.hover_ready = false;
             self.hover = None;
             self.press = None;
             self.stop_editing();
@@ -91,6 +92,7 @@ impl App {
         self.welcome_since = Instant::now();
         self.open = false;
         self.hovering = false;
+        self.hover_ready = false;
         self.play_sound(system::Sound::Chime);
         self.update_live_timer();
         self.retarget();
@@ -210,26 +212,15 @@ impl App {
             unsafe {
                 let _ = TrackMouseEvent(&mut tme);
             }
-        }
-        if self.welcome_tour {
-            self.welcome_tour = false;
-            self.welcomed = true;
-            self.save();
-        }
-        if !self.open && self.config.behavior.hover_to_open {
-            if self.info.has_session {
-                self.retarget();
-            } else {
-                self.open = true;
-                if self.alert && self.config.tabs.focus {
-                    self.tab = Tab::Focus;
+            if !self.open && self.config.behavior.hover_to_open {
+                let delay = self.config.behavior.hover_delay_ms;
+                if delay == 0 {
+                    self.open_on_hover();
+                } else {
+                    unsafe {
+                        SetTimer(self.hwnd, TIMER_HOVER, delay, None);
+                    }
                 }
-                if self.reminder.is_some() && self.config.tabs.tasks {
-                    self.tab = Tab::Tasks;
-                }
-                self.alert = false;
-                self.reminder = None;
-                self.retarget();
             }
         }
 
@@ -256,8 +247,38 @@ impl App {
         None
     }
 
+    fn open_on_hover(&mut self) {
+        if !self.hovering || self.open || !self.config.behavior.hover_to_open {
+            return;
+        }
+        self.hover_ready = true;
+        if self.welcome_tour {
+            self.welcome_tour = false;
+            self.welcomed = true;
+            self.save();
+        }
+        if self.info.has_session {
+            self.retarget();
+        } else {
+            self.open = true;
+            if self.alert && self.config.tabs.focus {
+                self.tab = Tab::Focus;
+            }
+            if self.reminder.is_some() && self.config.tabs.tasks {
+                self.tab = Tab::Tasks;
+            }
+            self.alert = false;
+            self.reminder = None;
+            self.retarget();
+        }
+    }
+
     pub(crate) fn on_mouse_leave(&mut self) {
+        unsafe {
+            let _ = KillTimer(self.hwnd, TIMER_HOVER);
+        }
         self.hovering = false;
+        self.hover_ready = false;
         self.mouse_pos = None;
         self.hover = None;
         self.press = None;
@@ -284,8 +305,12 @@ impl App {
         let pressed = self.press.take();
         let Some((action, rect)) = self.hit_rect(x, y) else {
             if !self.open {
+                unsafe {
+                    let _ = KillTimer(self.hwnd, TIMER_HOVER);
+                }
                 self.open = true;
                 self.hovering = true;
+                self.hover_ready = true;
                 if self.info.has_session && self.config.tabs.media {
                     self.tab = Tab::Music;
                 }
@@ -563,6 +588,7 @@ impl App {
         self.clamp_scroll();
         self.save();
         self.hovering = false;
+        self.hover_ready = false;
         self.schedule_close(400);
         self.redraw();
     }
@@ -684,6 +710,7 @@ impl App {
                     TIMER_CLOSE if self.editing || self.drag_in => return,
                     TIMER_CLOSE => {
                         self.open = false;
+                        self.hover_ready = false;
                         self.hover = None;
                     }
                     TIMER_HUD => {
@@ -699,6 +726,10 @@ impl App {
                         if let Some((level, muted)) = system::volume() {
                             self.show_hud(Hud::Volume(level, muted));
                         }
+                    }
+                    TIMER_HOVER => {
+                        self.open_on_hover();
+                        return;
                     }
                     TIMER_CAPS => self.show_hud(Hud::Caps(system::caps_lock())),
                     _ => {}
@@ -798,6 +829,7 @@ impl App {
             if hide && self.open {
                 self.open = false;
                 self.hovering = false;
+                self.hover_ready = false;
                 self.retarget();
             }
             unsafe {

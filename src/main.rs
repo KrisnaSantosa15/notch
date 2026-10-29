@@ -62,6 +62,7 @@ const TIMER_VOLUME: usize = 8;
 const TIMER_CAPS: usize = 9;
 const TIMER_LYRIC: usize = 10;
 const TIMER_CARET: usize = 11;
+const TIMER_HOVER: usize = 12;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Tab {
@@ -222,6 +223,7 @@ struct App {
     scroll: Spring, // lyrics column scroll
     open: bool,
     hovering: bool,
+    hover_ready: bool,
     hidden: bool,
     animating: bool,
     live_timer: bool,
@@ -586,6 +588,7 @@ fn main() -> Result<()> {
             scroll: Spring::new(0.0),
             open: false,
             hovering: false,
+            hover_ready: false,
             hidden: false,
             animating: false,
             live_timer: false,
