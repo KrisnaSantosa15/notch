@@ -53,6 +53,8 @@ features = [
 ]
 
 [profile.release]
+opt-level = "z"
 lto = true
-strip = "debuginfo"
+strip = true
 codegen-units = 1
+panic = "abort"
