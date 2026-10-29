@@ -10,6 +10,13 @@ pub const ORANGE: [u8; 3] = [255, 159, 10];
 pub const GREEN: [u8; 3] = [48, 209, 88];
 pub const RED: [u8; 3] = [255, 69, 58];
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum EyeMood {
+    Normal,
+    Happy,
+    Sleepy,
+}
+
 pub enum Icon {
     Play,
     Pause,
@@ -137,18 +144,39 @@ impl Frame<'_> {
     /// Pair of glowing eyes, mascot when idle.
     #[allow(clippy::too_many_arguments)]
     pub fn eyes(&mut self, cx: f32, cy: f32, r: f32, gap: f32, blink: bool, a: f32) {
-        self.animated_eyes(cx, cy, r, gap, blink, 0.0, a);
+        self.expressive_eyes(cx, cy, r, gap, blink, 0.0, EyeMood::Normal, a);
     }
 
     /// Pair of glowing eyes with horizontal look direction offset.
     #[allow(clippy::too_many_arguments)]
     pub fn animated_eyes(&mut self, cx: f32, cy: f32, r: f32, gap: f32, blink: bool, look_x: f32, a: f32) {
+        self.expressive_eyes(cx, cy, r, gap, blink, look_x, EyeMood::Normal, a);
+    }
+
+    /// Pair of glowing eyes with horizontal gaze and mood (Normal, Happy `^ ^`, Sleepy).
+    #[allow(clippy::too_many_arguments)]
+    pub fn expressive_eyes(&mut self, cx: f32, cy: f32, r: f32, gap: f32, blink: bool, look_x: f32, mood: EyeMood, a: f32) {
         for ex in [cx - gap, cx + gap] {
             self.circle(ex, cy, r * 2.2, [24, 28, 40], 0.85 * a);
             self.circle(ex, cy, r * 2.2, [90, 150, 255], 0.25 * a);
-            let ry = if blink { (r * 0.15).max(0.6) } else { r };
-            let oval = sk::Rect::from_xywh(ex - r + look_x, cy - ry, r * 2.0, ry * 2.0).and_then(sk::PathBuilder::from_oval);
-            self.fill(oval, [255, 255, 255], a);
+            match mood {
+                EyeMood::Happy => {
+                    let arc_path = arc(ex + look_x * 0.5, cy + r * 0.35, r * 0.9, 205.0, 130.0);
+                    self.stroke(arc_path, (r * 0.45).max(1.5), [255, 255, 255], a);
+                }
+                EyeMood::Sleepy => {
+                    let ry = if blink { (r * 0.15).max(0.6) } else { (r * 0.42).max(1.0) };
+                    let oval = sk::Rect::from_xywh(ex - r + look_x * 0.5, cy + r * 0.2 - ry, r * 2.0, ry * 2.0)
+                        .and_then(sk::PathBuilder::from_oval);
+                    self.fill(oval, [255, 255, 255], a * 0.85);
+                }
+                EyeMood::Normal => {
+                    let ry = if blink { (r * 0.15).max(0.6) } else { r };
+                    let oval = sk::Rect::from_xywh(ex - r + look_x, cy - ry, r * 2.0, ry * 2.0)
+                        .and_then(sk::PathBuilder::from_oval);
+                    self.fill(oval, [255, 255, 255], a);
+                }
+            }
         }
     }
 

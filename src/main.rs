@@ -238,6 +238,8 @@ struct App {
     live_since: Instant,
     tick: u32,
     blink: bool,
+    happy_until: Option<Instant>,
+    last_active: Instant,
     minute: u16,
     keyboard: (isize, u16),
 
@@ -619,6 +621,8 @@ fn main() -> Result<()> {
             live_since: now - Duration::from_secs(1),
             tick: 0,
             blink: false,
+            happy_until: None,
+            last_active: now,
             minute: GetLocalTime().wMinute,
             keyboard: system::keyboard_layout(),
             tab: initial_tab,

@@ -274,7 +274,8 @@ impl App {
         let moved = self.mouse_pos.map_or(true, |(px, py)| (px - x).hypot(py - y) > 3.0);
         if moved {
             self.mouse_pos = Some((x, y));
-            if self.open {
+            self.last_active = Instant::now();
+            if self.open || self.live == Live::Idle {
                 self.redraw();
             }
         }
@@ -451,6 +452,9 @@ impl App {
                     toggled = Some(t.done);
                 }
                 if let Some(done) = toggled {
+                    if done {
+                        self.happy_until = Some(Instant::now() + Duration::from_millis(2500));
+                    }
                     self.save();
                     self.play_sound(if done {
                         system::Sound::Chime
@@ -821,9 +825,14 @@ impl App {
             if self.focus.remaining() <= 0.0 {
                 self.focus.reset();
                 self.alert = !self.open;
+                self.happy_until = Some(Instant::now() + Duration::from_millis(4000));
                 self.play_sound(system::Sound::Chime);
                 self.notify();
             }
+        }
+        if self.happy_until.is_some_and(|t| Instant::now() >= t) {
+            self.happy_until = None;
+            dirty = true;
         }
 
         // task reminder

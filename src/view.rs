@@ -357,7 +357,10 @@ impl App {
                     self.draw_equalizer(f, right, cy, a);
                 }
             }
-            Live::Idle => f.eyes(cx, 15.0, 3.2, 9.0, self.blink, a),
+            Live::Idle => {
+                let (look, mood) = self.eye_state(cx, 3.2);
+                f.expressive_eyes(cx, 15.0, 3.2, 9.0, self.blink, look, mood, a);
+            }
         }
 
         // Privacy indicator dots (green for camera, orange for microphone)
@@ -519,10 +522,25 @@ impl App {
         }
     }
 
+    fn eye_state(&self, cx: f32, r: f32) -> (f32, EyeMood) {
+        let look = self
+            .mouse_pos
+            .map_or(0.0, |(mx, _)| ((mx - cx) / 45.0).clamp(-1.0, 1.0) * (r * 0.75));
+        let mood = if self.happy_until.is_some_and(|t| Instant::now() < t) {
+            EyeMood::Happy
+        } else if self.last_active.elapsed() > Duration::from_secs(300) {
+            EyeMood::Sleepy
+        } else {
+            EyeMood::Normal
+        };
+        (look, mood)
+    }
+
     fn draw_music(&mut self, c: &mut Ctx, x0: f32, x1: f32, cx: f32) {
         let a = c.a;
         if !self.info.has_session {
-            c.f.eyes(cx, 88.0, 6.0, 15.0, self.blink, a);
+            let (look, mood) = self.eye_state(cx, 6.0);
+            c.f.expressive_eyes(cx, 88.0, 6.0, 15.0, self.blink, look, mood, a);
             c.f.text_center(cx, 134.0, 13.0, true, WHITE, a, "Nothing playing");
             c.f.text_center(cx, 154.0, 12.0, false, WHITE, a * SOFT, "Play something in Spotify or your browser");
             return;
