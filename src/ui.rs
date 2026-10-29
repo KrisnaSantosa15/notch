@@ -27,6 +27,7 @@ pub enum Icon {
     Check,
     Close,
     Plus,
+    Pin,
 }
 
 /// Secondary text on glass: translucent white instead of grey, ensuring readability
@@ -340,6 +341,20 @@ impl Frame<'_> {
                 let s = z * 0.38;
                 self.stroke(line(cx - s, cy, cx + s, cy), z * 0.12, rgb, a);
                 self.stroke(line(cx, cy - s, cx, cy + s), z * 0.12, rgb, a);
+            }
+            Icon::Pin => {
+                self.fill(rrect(cx - z * 0.3, cy - z * 0.44, z * 0.6, z * 0.14, z * 0.06), rgb, a);
+                self.fill(
+                    poly(&[
+                        (cx - z * 0.2, cy - z * 0.3),
+                        (cx + z * 0.2, cy - z * 0.3),
+                        (cx + z * 0.34, cy + z * 0.08),
+                        (cx - z * 0.34, cy + z * 0.08),
+                    ]),
+                    rgb,
+                    a,
+                );
+                self.stroke(line(cx, cy + z * 0.08, cx, cy + z * 0.46), z * 0.11, rgb, a);
             }
         }
     }

@@ -78,6 +78,7 @@ impl App {
             self.alert = false;
             self.reminder = None;
         } else {
+            self.pinned = false;
             self.hovering = false;
             self.hover_ready = false;
             self.hover = None;
@@ -85,6 +86,17 @@ impl App {
             self.stop_editing();
         }
         self.retarget();
+    }
+
+    pub(crate) fn toggle_pin(&mut self) {
+        self.pinned = !self.pinned;
+        self.play_sound(system::Sound::Pop);
+        if self.pinned && !self.open {
+            self.open = true;
+            self.retarget();
+        } else {
+            self.redraw();
+        }
     }
 
     pub(crate) fn on_escape(&mut self) {
@@ -95,6 +107,7 @@ impl App {
         }
         if self.open {
             self.open = false;
+            self.pinned = false;
             self.hovering = false;
             self.hover_ready = false;
             self.hover = None;
@@ -107,6 +120,7 @@ impl App {
         self.welcome_tour = true;
         self.welcome_since = Instant::now();
         self.open = false;
+        self.pinned = false;
         self.hovering = false;
         self.hover_ready = false;
         self.play_sound(system::Sound::Chime);
@@ -311,8 +325,10 @@ impl App {
         if !self.open {
             self.retarget();
         }
-        // small delay so the notch doesn't flicker when the mouse grazes the edge
-        unsafe { SetTimer(self.hwnd, TIMER_CLOSE, self.config.behavior.auto_close_delay_ms, None) };
+        if !self.pinned {
+            // small delay so the notch doesn't flicker when the mouse grazes the edge
+            unsafe { SetTimer(self.hwnd, TIMER_CLOSE, self.config.behavior.auto_close_delay_ms, None) };
+        }
         self.redraw();
     }
 
@@ -445,6 +461,7 @@ impl App {
                     shelf::open(&info.url);
                 }
             }
+            Action::TogglePin => self.toggle_pin(),
             Action::SettingsAccent(i) => {
                 match i {
                     0 => self.config.theme.accent_mode = "album_art".to_string(),
@@ -620,7 +637,7 @@ impl App {
     }
 
     fn schedule_close(&self, ms: u32) {
-        if !self.hovering {
+        if !self.hovering && !self.pinned {
             unsafe { SetTimer(self.hwnd, TIMER_CLOSE, ms.max(self.config.behavior.auto_close_delay_ms), None) };
         }
     }
@@ -733,7 +750,7 @@ impl App {
                     let _ = KillTimer(self.hwnd, id);
                 }
                 match id {
-                    TIMER_CLOSE if self.editing || self.drag_in => return,
+                    TIMER_CLOSE if self.editing || self.drag_in || self.pinned => return,
                     TIMER_CLOSE => {
                         self.open = false;
                         self.hover_ready = false;
@@ -854,6 +871,7 @@ impl App {
             self.hidden = hide;
             if hide && self.open {
                 self.open = false;
+                self.pinned = false;
                 self.hovering = false;
                 self.hover_ready = false;
                 self.retarget();

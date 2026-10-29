@@ -445,6 +445,10 @@ impl App {
             x += c.pill(Action::OpenUpdate, x, 12.0, &label, None, false, false) + 4.0;
         }
 
+        let accent = self.accent();
+        c.toggle(Action::TogglePin, x + 12.0, 24.0, 12.0, Icon::Pin, 12.0, self.pinned, accent);
+        x += 28.0;
+
         let a = c.a;
         if let Some(Hud::Volume(level, muted)) = self.hud {
             let accent = self.accent();

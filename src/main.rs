@@ -51,6 +51,7 @@ const WM_MOUSELEAVE: u32 = 0x02A3; // not exported by WindowsAndMessaging module
 const PBT_APMPOWERSTATUSCHANGE: usize = 0x0A;
 const HOTKEY_TOGGLE: i32 = 100;
 const HOTKEY_ESC: i32 = 101;
+const HOTKEY_PIN: i32 = 102;
 
 const TIMER_ANIM: usize = 1;
 const TIMER_TICK: usize = 2;
@@ -95,6 +96,7 @@ enum Action {
     TaskInput,
     TaskSubmit,
     OpenUpdate,
+    TogglePin,
     SettingsAccent(usize),
     SettingsToggleSound,
     SettingsToggleFullscreen,
@@ -223,6 +225,7 @@ struct App {
     r: Spring,
     scroll: Spring, // lyrics column scroll
     open: bool,
+    pinned: bool,
     hovering: bool,
     hover_ready: bool,
     hidden: bool,
@@ -485,6 +488,9 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             HOTKEY_ESC => {
                 with_app(|a| a.on_escape());
             }
+            HOTKEY_PIN => {
+                with_app(|a| a.toggle_pin());
+            }
             _ => {}
         },
         WM_DESTROY => {
@@ -497,6 +503,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
             let _ = UnregisterHotKey(hwnd, HOTKEY_TOGGLE);
             let _ = UnregisterHotKey(hwnd, HOTKEY_ESC);
+            let _ = UnregisterHotKey(hwnd, HOTKEY_PIN);
             PostQuitMessage(0);
         }
         _ => return DefWindowProcW(hwnd, msg, wp, lp),
@@ -594,6 +601,7 @@ fn main() -> Result<()> {
             r: Spring::new(cfg.notch.corner_radius),
             scroll: Spring::new(0.0),
             open: false,
+            pinned: false,
             hovering: false,
             hover_ready: false,
             hidden: false,
@@ -669,6 +677,7 @@ fn main() -> Result<()> {
         SetTimer(hwnd, TIMER_TICK, 1000, None);
         system::register_volume_notify(hwnd, WM_APP_KEY);
         let _ = RegisterHotKey(hwnd, HOTKEY_TOGGLE, MOD_WIN | MOD_ALT | MOD_NOREPEAT, 'N' as u32);
+        let _ = RegisterHotKey(hwnd, HOTKEY_PIN, MOD_WIN | MOD_ALT | MOD_NOREPEAT, 'P' as u32);
 
         let update_hwnd = hwnd.0 as isize;
         update::check_in_background(move |_info| {
