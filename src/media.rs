@@ -8,16 +8,18 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tiny_skia as sk;
 use windows::core::Interface;
-use windows::Foundation::TimeSpan;
+use windows::Foundation::{TimeSpan, TypedEventHandler};
 use windows::Graphics::Imaging::{
     BitmapAlphaMode, BitmapBounds, BitmapDecoder, BitmapInterpolationMode, BitmapPixelFormat,
     BitmapTransform, ColorManagementMode, ExifOrientationMode,
 };
 use windows::Media::Control::{
-    GlobalSystemMediaTransportControlsSession as Session,
+    CurrentSessionChangedEventArgs, GlobalSystemMediaTransportControlsSession as Session,
     GlobalSystemMediaTransportControlsSessionManager as Manager,
     GlobalSystemMediaTransportControlsSessionMediaProperties as Props,
     GlobalSystemMediaTransportControlsSessionPlaybackStatus as Status,
+    MediaPropertiesChangedEventArgs, PlaybackInfoChangedEventArgs, SessionsChangedEventArgs,
+    TimelinePropertiesChangedEventArgs,
 };
 use windows::Storage::Streams::IRandomAccessStream;
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
@@ -111,38 +113,142 @@ struct ArtCache {
     tries: u8,
 }
 
+/// Active SMTC session subscriptions so we can unregister tokens when the session switches.
+struct SubscribedSession {
+    id: String,
+    session: Session,
+    tokens: [windows::Foundation::EventRegistrationToken; 3],
+}
+
+impl Drop for SubscribedSession {
+    fn drop(&mut self) {
+        let _ = self.session.RemoveMediaPropertiesChanged(self.tokens[0]);
+        let _ = self.session.RemovePlaybackInfoChanged(self.tokens[1]);
+        let _ = self.session.RemoveTimelinePropertiesChanged(self.tokens[2]);
+    }
+}
+
+fn subscribe_manager(m: &Manager, tx: &mpsc::Sender<Cmd>) {
+    let tx1 = tx.clone();
+    let _ = m.CurrentSessionChanged(&TypedEventHandler::<Manager, CurrentSessionChangedEventArgs>::new(
+        move |_, _| {
+            let _ = tx1.send(Cmd::Refresh);
+            Ok(())
+        },
+    ));
+    let tx2 = tx.clone();
+    let _ = m.SessionsChanged(&TypedEventHandler::<Manager, SessionsChangedEventArgs>::new(
+        move |_, _| {
+            let _ = tx2.send(Cmd::Refresh);
+            Ok(())
+        },
+    ));
+}
+
+fn sync_session_subscription(
+    m: &Manager,
+    sub: &mut Option<SubscribedSession>,
+    tx: &mpsc::Sender<Cmd>,
+) {
+    let Ok(session) = m.GetCurrentSession() else {
+        *sub = None;
+        return;
+    };
+    let id = session.SourceAppUserModelId().map(|s| s.to_string()).unwrap_or_default();
+    if sub.as_ref().is_some_and(|s| s.id == id) {
+        return;
+    }
+    *sub = None;
+    let tx1 = tx.clone();
+    let Ok(t0) = session.MediaPropertiesChanged(&TypedEventHandler::<Session, MediaPropertiesChangedEventArgs>::new(
+        move |_, _| {
+            let _ = tx1.send(Cmd::Refresh);
+            Ok(())
+        },
+    )) else {
+        return;
+    };
+    let tx2 = tx.clone();
+    let Ok(t1) = session.PlaybackInfoChanged(&TypedEventHandler::<Session, PlaybackInfoChangedEventArgs>::new(
+        move |_, _| {
+            let _ = tx2.send(Cmd::Refresh);
+            Ok(())
+        },
+    )) else {
+        let _ = session.RemoveMediaPropertiesChanged(t0);
+        return;
+    };
+    let tx3 = tx.clone();
+    let Ok(t2) = session.TimelinePropertiesChanged(&TypedEventHandler::<Session, TimelinePropertiesChangedEventArgs>::new(
+        move |_, _| {
+            let _ = tx3.send(Cmd::Refresh);
+            Ok(())
+        },
+    )) else {
+        let _ = session.RemoveMediaPropertiesChanged(t0);
+        let _ = session.RemovePlaybackInfoChanged(t1);
+        return;
+    };
+    *sub = Some(SubscribedSession { id, session, tokens: [t0, t1, t2] });
+}
+
 /// Starts the media thread. Sends `msg` to `hwnd` on any meaningful change.
 pub fn start(hwnd: isize, msg: u32, lyrics_on: bool) -> Handle {
     let state = Arc::new(Mutex::new(MediaInfo::default()));
     let slot = Arc::new(Mutex::new(LyricsSlot { key: String::new(), state: LyricsState::Missing }));
     let lyrics_on = Arc::new(AtomicBool::new(lyrics_on));
     let (tx, rx) = mpsc::channel();
+    let event_tx = tx.clone();
     let handle = Handle { state: state.clone(), lyrics: slot.clone(), lyrics_on: lyrics_on.clone(), tx };
     let notify = move || unsafe {
         let _ = PostMessageW(HWND(hwnd as _), msg, WPARAM(0), LPARAM(0));
     };
+
+    // Trigger an immediate initial read on startup
+    let _ = event_tx.send(Cmd::Refresh);
 
     std::thread::spawn(move || {
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
         let mut manager: Option<Manager> = None;
+        let mut sub: Option<SubscribedSession> = None;
         let mut cache = ArtCache::default();
         loop {
-            let cmd = rx.recv_timeout(Duration::from_secs(1));
+            // Short retry timeout only while waiting for delayed album artwork; otherwise event-driven with a 5s fallback
+            let timeout = if cache.art.is_none() && !cache.key.is_empty() && cache.tries < 8 {
+                Duration::from_millis(350)
+            } else {
+                Duration::from_secs(5)
+            };
+            let mut cmd = rx.recv_timeout(timeout);
             if let Err(mpsc::RecvTimeoutError::Disconnected) = cmd {
                 break;
             }
+            // Coalesce queued Refresh events while preserving explicit transport commands
+            while let Ok(next) = rx.try_recv() {
+                if !matches!(next, Cmd::Refresh) || cmd.is_err() {
+                    cmd = Ok(next);
+                }
+            }
+
             if manager.is_none() {
-                manager = Manager::RequestAsync().and_then(|op| op.get()).ok();
+                if let Ok(m) = Manager::RequestAsync().and_then(|op| op.get()) {
+                    subscribe_manager(&m, &event_tx);
+                    manager = Some(m);
+                }
             }
             let Some(m) = &manager else { continue };
+            sync_session_subscription(m, &mut sub, &event_tx);
 
             if let (Ok(cmd), Ok(session)) = (cmd, m.GetCurrentSession()) {
-                let start = state.lock().unwrap().start;
-                if run(&session, cmd, start).unwrap_or(false) {
-                    // give media player app time to update its status
-                    std::thread::sleep(Duration::from_millis(250));
+                let (start, playing) = {
+                    let guard = state.lock().unwrap();
+                    (guard.start, guard.playing)
+                };
+                if run(&session, cmd, start, playing).unwrap_or(false) {
+                    // give media player app a brief moment to publish its updated status
+                    std::thread::sleep(Duration::from_millis(120));
                 }
             }
 
@@ -200,15 +306,26 @@ fn fake_media() -> Option<MediaInfo> {
 }
 
 /// Executes command; returns `true` if the player needs time to respond.
-fn run(s: &Session, cmd: Cmd, start: f64) -> windows::core::Result<bool> {
-    let op = match cmd {
-        Cmd::Toggle => s.TryTogglePlayPauseAsync()?,
-        Cmd::Next => s.TrySkipNextAsync()?,
-        Cmd::Prev => s.TrySkipPreviousAsync()?,
-        Cmd::Seek(t) => s.TryChangePlaybackPositionAsync(((start + t) * 1e7) as i64)?,
+fn run(s: &Session, cmd: Cmd, start: f64, playing: bool) -> windows::core::Result<bool> {
+    match cmd {
+        Cmd::Toggle => {
+            crate::system::fade_toggle(playing, || {
+                s.TryTogglePlayPauseAsync()?.get()?;
+                Ok(())
+            })?;
+            return Ok(true);
+        }
+        Cmd::Next => {
+            s.TrySkipNextAsync()?.get()?;
+        }
+        Cmd::Prev => {
+            s.TrySkipPreviousAsync()?.get()?;
+        }
+        Cmd::Seek(t) => {
+            s.TryChangePlaybackPositionAsync(((start + t) * 1e7) as i64)?.get()?;
+        }
         Cmd::Refresh => return Ok(false),
-    };
-    op.get()?;
+    }
     Ok(true)
 }
 
@@ -227,13 +344,13 @@ fn read(m: &Manager, cache: &mut ArtCache) -> windows::core::Result<MediaInfo> {
     let title = props.Title()?.to_string();
     let artist = props.Artist()?.to_string();
 
-    // Artwork is fetched once per track; retried a few times because players
+    // Artwork is fetched once per track; retried up to 8 times because players
     // often publish metadata first and artwork slightly later.
     let key = format!("{title}\u{1}{artist}");
     if key != cache.key {
         *cache = ArtCache { key, ..Default::default() };
     }
-    if cache.art.is_none() && cache.tries < 4 {
+    if cache.art.is_none() && cache.tries < 8 {
         cache.tries += 1;
         cache.art = fetch_art(&props).ok().map(Arc::new);
     }

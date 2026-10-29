@@ -19,6 +19,8 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 pub const KEY_VOLUME: usize = 1;
 
+static FADING_VOLUME: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 fn endpoint() -> Option<IAudioEndpointVolume> {
     unsafe {
         let devices: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
@@ -43,6 +45,80 @@ pub fn nudge_volume(delta: f32) -> Option<(f32, bool)> {
         }
     }
     volume()
+}
+
+pub(crate) fn fade_out_curve(t: f32) -> f32 {
+    let u = (1.0 - t).clamp(0.0, 1.0);
+    u * u
+}
+
+pub(crate) fn fade_in_curve(t: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+struct FadeGuard<'a>(&'a IAudioEndpointVolume, f32);
+
+impl Drop for FadeGuard<'_> {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = self.0.SetMasterVolumeLevelScalar(self.1, std::ptr::null());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(15));
+        FADING_VOLUME.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// Smoothly fades master audio out (~160 ms) before pausing, or fades in (~200 ms) after starting playback,
+/// always restoring the user's original volume level afterward without triggering the Volume HUD.
+pub fn fade_toggle<F: FnOnce() -> windows::core::Result<()>>(
+    currently_playing: bool,
+    toggle: F,
+) -> windows::core::Result<()> {
+    let Some(ep) = endpoint() else {
+        return toggle();
+    };
+    let (orig, muted) = unsafe {
+        let v = ep.GetMasterVolumeLevelScalar().unwrap_or(0.0);
+        let m = ep.GetMute().map(|b| b.as_bool()).unwrap_or(false);
+        (v, m)
+    };
+    if muted || orig <= 0.02 {
+        return toggle();
+    }
+
+    FADING_VOLUME.store(true, std::sync::atomic::Ordering::Relaxed);
+    let _guard = FadeGuard(&ep, orig);
+
+    if currently_playing {
+        // Fade out gently over ~160 ms before pausing
+        const STEPS: u32 = 8;
+        for step in 1..=STEPS {
+            let level = orig * fade_out_curve(step as f32 / STEPS as f32);
+            unsafe {
+                let _ = ep.SetMasterVolumeLevelScalar(level.clamp(0.0, 1.0), std::ptr::null());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        toggle()?;
+        std::thread::sleep(std::time::Duration::from_millis(55));
+    } else {
+        // Start at 0 volume and swell up smoothly over ~200 ms
+        unsafe {
+            let _ = ep.SetMasterVolumeLevelScalar(0.0, std::ptr::null());
+        }
+        toggle()?;
+        std::thread::sleep(std::time::Duration::from_millis(25));
+        const STEPS: u32 = 10;
+        for step in 1..=STEPS {
+            let level = orig * fade_in_curve(step as f32 / STEPS as f32);
+            unsafe {
+                let _ = ep.SetMasterVolumeLevelScalar(level.clamp(0.0, 1.0), std::ptr::null());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+    }
+    Ok(())
 }
 
 pub fn caps_lock() -> bool {
@@ -107,6 +183,9 @@ struct VolumeNotification(HWND, u32);
 
 impl IAudioEndpointVolumeCallback_Impl for VolumeNotification_Impl {
     fn OnNotify(&self, _data: *mut AUDIO_VOLUME_NOTIFICATION_DATA) -> windows::core::Result<()> {
+        if FADING_VOLUME.load(std::sync::atomic::Ordering::Relaxed) {
+            return Ok(());
+        }
         unsafe {
             let _ = PostMessageW(self.0, self.1, WPARAM(KEY_VOLUME), LPARAM(0));
         }
@@ -511,5 +590,16 @@ mod tests {
         assert_eq!(&wav[8..12], b"WAVE");
         assert_eq!(&wav[12..16], b"fmt ");
         assert_eq!(&wav[36..40], b"data");
+    }
+
+    #[test]
+    fn test_fade_curves() {
+        assert!((fade_out_curve(0.0) - 1.0).abs() < 1e-6);
+        assert!(fade_out_curve(0.5) < fade_out_curve(0.0));
+        assert!(fade_out_curve(1.0).abs() < 1e-6);
+
+        assert!(fade_in_curve(0.0).abs() < 1e-6);
+        assert!(fade_in_curve(0.5) > 0.0 && fade_in_curve(0.5) < 1.0);
+        assert!((fade_in_curve(1.0) - 1.0).abs() < 1e-6);
     }
 }
