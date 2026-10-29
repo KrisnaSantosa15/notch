@@ -185,9 +185,16 @@ impl App {
         }
     }
 
-    /// Equalizer only animates when music is playing and the notch is closed.
+    /// Equalizer and power HUD animations only run while visible in the closed notch.
     fn update_live_timer(&mut self) {
-        let want = !self.open && !self.hidden && (self.welcome_tour || ((matches!(self.live, Live::Media | Live::Lyric) || (self.focus.running() && self.info.has_session)) && self.info.playing));
+        let power_hud = matches!(self.live, Live::Hud(Hud::Power(_, _)));
+        let want = !self.open
+            && !self.hidden
+            && (self.welcome_tour
+                || power_hud
+                || ((matches!(self.live, Live::Media | Live::Lyric)
+                    || (self.focus.running() && self.info.has_session))
+                    && self.info.playing));
         if want != self.live_timer {
             self.live_timer = want;
             unsafe {
@@ -866,8 +873,12 @@ impl App {
 
     pub(crate) fn on_power(&mut self) {
         let now = system::battery();
-        if let (Some((was, _)), Some((ac, pct))) = (self.battery, now) {
-            if was != ac {
+        if let (Some((was_ac, was_pct)), Some((ac, pct))) = (self.battery, now) {
+            let low_crossed = !ac && ((was_pct > 20 && pct <= 20) || (was_pct > 10 && pct <= 10));
+            if was_ac != ac || low_crossed {
+                if ac || low_crossed {
+                    self.play_sound(system::Sound::Chime);
+                }
                 self.show_hud(Hud::Power(ac, pct));
             }
         }
@@ -980,7 +991,7 @@ impl App {
             dirty = true;
         }
         if self.tick.is_multiple_of(30) {
-            self.battery = system::battery();
+            self.on_power();
         }
 
         // walks the camera/mic consent registry trees: every 3 s is plenty for an indicator

@@ -56,15 +56,25 @@ impl App {
             }
         }
 
-        // Feature 1B: Ambient backdrop underglow during music playback
-        if self.info.playing {
-            let accent = self.accent();
-            let pulse = (self.started.elapsed().as_secs_f32() * 2.2).sin() * 0.15 + 0.85;
+        // Ambient backdrop underglow during music playback or battery/power alerts
+        let power_glow = match self.live {
+            Live::Hud(Hud::Power(true, _)) => Some(GREEN),
+            Live::Hud(Hud::Power(false, pct)) if pct <= 10 => Some(RED),
+            Live::Hud(Hud::Power(false, pct)) if pct <= 20 => Some(ORANGE),
+            _ => match self.battery {
+                Some((false, pct)) if !self.open && pct <= 10 => Some(RED),
+                Some((false, pct)) if !self.open && pct <= 20 => Some(ORANGE),
+                _ => None,
+            },
+        };
+        if let Some(glow_rgb) = power_glow.or_else(|| self.info.playing.then(|| self.accent())) {
+            let pulse = (self.started.elapsed().as_secs_f32() * 2.6).sin() * 0.18 + 0.82;
+            let base_a = if power_glow.is_some() { 0.065 } else { 0.040 };
             for i in 1..=4 {
                 let spread = i as f32 * 3.2;
-                let alpha = (0.040 / i as f32) * pulse;
+                let alpha = (base_a / i as f32) * pulse;
                 if let Some(p) = rrect(x0 - spread, -r, w + spread * 2.0, h + r + spread + 2.0, r + spread) {
-                    pm.fill_path(&p, &solid(accent, alpha), sk::FillRule::Winding, ts, None);
+                    pm.fill_path(&p, &solid(glow_rgb, alpha), sk::FillRule::Winding, ts, None);
                 }
             }
         }
@@ -242,12 +252,35 @@ impl App {
                 f.text_right(right, 21.0, 12.0, true, WHITE, a * alpha, label);
             }
             Live::Hud(Hud::Power(charging, pct)) => {
-                f.icon(Icon::Battery(pct as f32 / 100.0, charging), left + 2.0, cy, 18.0, WHITE, a);
-                let x = f.text_right(right, 21.0, 12.0, true, WHITE, a, &format!("{pct}%"));
-                if charging {
-                    f.text_right(x - 6.0, 21.0, 12.0, true, GREEN, a, "Charging");
+                let color = if charging {
+                    GREEN
+                } else if pct <= 10 {
+                    RED
+                } else if pct <= 20 {
+                    ORANGE
                 } else {
-                    f.text_right(x - 6.0, 21.0, 12.0, true, WHITE, a * SOFT, "On battery");
+                    WHITE
+                };
+                f.stroke(Some(notch_path(x0, x1, self.config.notch.closed_height, self.config.notch.corner_radius, EAR)), 1.2, color, 0.38 * a);
+                f.icon(Icon::Battery(pct as f32 / 100.0, charging), left + 2.0, cy, 18.0, color, a);
+                let label = if charging {
+                    "Charging"
+                } else if pct <= 20 {
+                    "Low Battery"
+                } else {
+                    "On battery"
+                };
+                f.text(left + 18.0, 21.0, 12.0, true, color, a, label);
+
+                let pct_x = f.text_right(right, 21.0, 12.0, true, color, a, &format!("{pct}%"));
+                let bar_w = 72.0;
+                let bar_x = pct_x - 10.0 - bar_w;
+                if bar_x > left + 90.0 {
+                    f.fill(rrect(bar_x, cy - 2.5, bar_w, 5.0, 2.5), WHITE, 0.16 * a);
+                    let elapsed = self.live_since.elapsed().as_secs_f32();
+                    let sweep = if charging { (elapsed / 0.55).clamp(0.15, 1.0) } else { 1.0 };
+                    let fill_w = (bar_w * (pct as f32 / 100.0).clamp(0.06, 1.0) * sweep).max(3.0);
+                    f.fill(rrect(bar_x, cy - 2.5, fill_w, 5.0, 2.5), color, a);
                 }
             }
             Live::Hud(Hud::Layout(lang)) => {
@@ -532,8 +565,25 @@ impl App {
             let right = c.f.text_right(status_right, 27.5, 12.0, true, WHITE, a * 0.92, &clock);
             let mut left_info = match self.battery {
                 Some((charging, pct)) => {
-                    c.f.icon(Icon::Battery(pct as f32 / 100.0, charging), right - 17.0, 23.0, 14.5, WHITE, a * 0.85);
-                    c.f.text_right(right - 28.0, 27.5, 11.0, true, WHITE, a * SOFT, &format!("{pct}%"))
+                    let bat_color = if charging {
+                        GREEN
+                    } else if pct <= 10 {
+                        RED
+                    } else if pct <= 20 {
+                        ORANGE
+                    } else {
+                        WHITE
+                    };
+                    c.f.icon(Icon::Battery(pct as f32 / 100.0, charging), right - 17.0, 23.0, 14.5, bat_color, a * 0.90);
+                    c.f.text_right(
+                        right - 28.0,
+                        27.5,
+                        11.0,
+                        true,
+                        bat_color,
+                        a * if charging || pct <= 20 { 0.92 } else { SOFT },
+                        &format!("{pct}%"),
+                    )
                 }
                 None => {
                     let day = format!("{} {}", DAYS[now.wDayOfWeek as usize % 7], now.wDay);
