@@ -7,6 +7,11 @@ use windows::Data::Json::JsonObject;
 use windows::Web::Http::HttpClient;
 
 pub const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const ALLOWED_URL_PREFIX: &str = "https://github.com/KrisnaSantosa15/notch/";
+
+pub fn is_valid_update_url(url: &str) -> bool {
+    url.starts_with(ALLOWED_URL_PREFIX)
+}
 
 #[derive(Clone, Debug)]
 pub struct UpdateInfo {
@@ -25,6 +30,9 @@ pub fn check_latest_release() -> Option<UpdateInfo> {
     let json = JsonObject::Parse(&HSTRING::from(body)).ok()?;
     let tag = json.GetNamedString(&HSTRING::from("tag_name")).ok()?.to_string();
     let url = json.GetNamedString(&HSTRING::from("html_url")).ok()?.to_string();
+    if !is_valid_update_url(&url) {
+        return None;
+    }
 
     let clean_tag = tag.trim_start_matches('v');
     let clean_current = CURRENT_VERSION.trim_start_matches('v');
@@ -74,5 +82,12 @@ mod tests {
         assert!(!is_newer("0.2.9", "0.3.0"));
         assert!(is_newer("0.6.0", "0.6.0-rc1"));
         assert!(!is_newer("0.6.0-rc1", "0.6.0"));
+    }
+
+    #[test]
+    fn validates_update_urls() {
+        assert!(is_valid_update_url("https://github.com/KrisnaSantosa15/notch/releases/tag/v0.5.2"));
+        assert!(!is_valid_update_url("http://github.com/KrisnaSantosa15/notch/releases"));
+        assert!(!is_valid_update_url("file:///C:/Windows/System32/calc.exe"));
     }
 }
