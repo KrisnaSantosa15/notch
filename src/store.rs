@@ -6,6 +6,7 @@ use crate::tasks::Task;
 use std::path::PathBuf;
 
 pub struct Saved {
+    pub tab: String,
     pub lyrics: bool,
     pub preset: u32,
     pub files: Vec<String>,
@@ -18,13 +19,21 @@ fn path() -> Option<PathBuf> {
 }
 
 pub fn load() -> Saved {
-    let mut saved = Saved { lyrics: false, preset: 25, files: Vec::new(), tasks: Vec::new(), welcomed: false };
+    let mut saved = Saved {
+        tab: "music".to_string(),
+        lyrics: false,
+        preset: 25,
+        files: Vec::new(),
+        tasks: Vec::new(),
+        welcomed: false,
+    };
     let Some(text) = path().and_then(|p| std::fs::read_to_string(p).ok()) else { return saved };
     let now = unix_now();
     for line in text.lines() {
         let Some((key, value)) = line.split_once('=') else { continue };
         match key {
             "welcomed" => saved.welcomed = value == "1",
+            "tab" => saved.tab = value.to_string(),
             "lyrics" => saved.lyrics = value == "1",
             "preset" => saved.preset = value.parse().unwrap_or(25),
             "file" if std::path::Path::new(value).exists() => saved.files.push(value.to_string()),
@@ -50,10 +59,14 @@ pub fn load() -> Saved {
     saved
 }
 
-pub fn save(welcomed: bool, lyrics: bool, preset: u32, files: &[String], tasks: &[Task]) {
+pub fn save(welcomed: bool, tab: &str, lyrics: bool, preset: u32, files: &[String], tasks: &[Task]) {
     let Some(path) = path() else { return };
     let clean = |s: &str| s.replace(['\t', '\n', '\r'], " ");
-    let mut out = format!("welcomed={}\nlyrics={}\npreset={preset}\n", if welcomed { 1 } else { 0 }, if lyrics { 1 } else { 0 });
+    let mut out = format!(
+        "welcomed={}\ntab={tab}\nlyrics={}\npreset={preset}\n",
+        if welcomed { 1 } else { 0 },
+        if lyrics { 1 } else { 0 }
+    );
     for f in files {
         out += &format!("file={f}\n");
     }
@@ -86,15 +99,25 @@ mod tests {
 
     #[test]
     fn test_saved_welcomed_parsing() {
-        let text = "welcomed=1\nlyrics=0\npreset=15\n";
-        let mut saved = Saved { lyrics: false, preset: 25, files: Vec::new(), tasks: Vec::new(), welcomed: false };
+        let text = "welcomed=1\ntab=tasks\nlyrics=0\npreset=15\n";
+        let mut saved = Saved {
+            tab: "music".to_string(),
+            lyrics: false,
+            preset: 25,
+            files: Vec::new(),
+            tasks: Vec::new(),
+            welcomed: false,
+        };
         for line in text.lines() {
             if let Some((k, v)) = line.split_once('=') {
-                if k == "welcomed" {
-                    saved.welcomed = v == "1";
+                match k {
+                    "welcomed" => saved.welcomed = v == "1",
+                    "tab" => saved.tab = v.to_string(),
+                    _ => {}
                 }
             }
         }
         assert!(saved.welcomed);
+        assert_eq!(saved.tab, "tasks");
     }
 }

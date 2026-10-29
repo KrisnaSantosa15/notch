@@ -76,6 +76,30 @@ enum Tab {
     Settings,
 }
 
+impl Tab {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Tab::Music => "music",
+            Tab::Focus => "focus",
+            Tab::Shelf => "shelf",
+            Tab::Tasks => "tasks",
+            Tab::Clipboard => "clips",
+            Tab::Settings => "settings",
+        }
+    }
+
+    pub(crate) fn from_str(s: &str) -> Self {
+        match s {
+            "focus" => Tab::Focus,
+            "shelf" => Tab::Shelf,
+            "tasks" => Tab::Tasks,
+            "clips" | "clipboard" => Tab::Clipboard,
+            "settings" => Tab::Settings,
+            _ => Tab::Music,
+        }
+    }
+}
+
 /// Everything clickable in the open notch.
 #[derive(Clone, Copy, PartialEq)]
 enum Action {
@@ -617,17 +641,7 @@ fn main() -> Result<()> {
         let saved = store::load();
         let px = (48.0 * GetDpiForWindow(hwnd) as f32 / 96.0) as u32;
         let now = Instant::now();
-        let initial_tab = if cfg.tabs.media {
-            Tab::Music
-        } else if cfg.tabs.focus {
-            Tab::Focus
-        } else if cfg.tabs.shelf {
-            Tab::Shelf
-        } else if cfg.tabs.tasks {
-            Tab::Tasks
-        } else {
-            Tab::Music
-        };
+        let initial_tab = Tab::from_str(&saved.tab);
         let app = App {
             hwnd,
             backdrop,
@@ -704,6 +718,9 @@ fn main() -> Result<()> {
         };
         APP.with(|cell| *cell.borrow_mut() = Some(app));
         with_app(|a| {
+            if !a.is_tab_enabled(a.tab) {
+                a.tab = a.first_enabled_tab();
+            }
             a.sync_clipboard_listener();
             a.relayout();
         });
@@ -712,14 +729,7 @@ fn main() -> Result<()> {
         if let Ok(tab) = std::env::var("NOTCH_OPEN") {
             with_app(|a| {
                 a.open = true;
-                a.tab = match tab.as_str() {
-                    "focus" => Tab::Focus,
-                    "shelf" => Tab::Shelf,
-                    "tasks" => Tab::Tasks,
-                    "clips" | "clipboard" => Tab::Clipboard,
-                    "settings" => Tab::Settings,
-                    _ => Tab::Music,
-                };
+                a.tab = Tab::from_str(&tab);
                 if tab == "focus" {
                     a.focus.toggle();
                 }

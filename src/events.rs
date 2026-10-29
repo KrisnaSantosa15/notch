@@ -369,9 +369,6 @@ impl App {
                 self.open = true;
                 self.hovering = true;
                 self.hover_ready = true;
-                if self.info.has_session && self.config.tabs.media {
-                    self.tab = Tab::Music;
-                }
                 self.retarget();
             }
             self.stop_editing();
@@ -396,6 +393,7 @@ impl App {
                     self.hovering = true;
                     self.hover_ready = true;
                 }
+                self.save();
             }
             Action::Prev => self.media.send(media::Cmd::Prev),
             Action::Next => self.media.send(media::Cmd::Next),
@@ -1039,7 +1037,7 @@ impl App {
 
     fn save(&self) {
         let files: Vec<String> = self.shelf.iter().map(|i| i.path.clone()).collect();
-        store::save(self.welcomed, self.lyrics_on, self.focus.minutes, &files, &self.tasks);
+        store::save(self.welcomed, self.tab.as_str(), self.lyrics_on, self.focus.minutes, &files, &self.tasks);
     }
 
     /// Redraw only when not animating (animation already draws every frame).

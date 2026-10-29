@@ -306,9 +306,6 @@ impl App {
             }
             Live::Media | Live::Lyric => {
                 self.mini_art(f, x0, a);
-                if let Some(r) = sk::Rect::from_xywh(x0, 0.0, 42.0, self.config.notch.closed_height) {
-                    hits.push((Action::Tab(Tab::Music), r));
-                }
 
                 if self.hover_ready && self.info.has_session {
                     let avail_w = (x1 - x0 - 130.0).max(40.0);
@@ -319,9 +316,6 @@ impl App {
                     };
                     let fit_title = f.fit(title, 11.5, true, avail_w);
                     f.text(x0 + 40.0, 20.5, 11.5, true, WHITE, a, &fit_title);
-                    if let Some(r) = sk::Rect::from_xywh(x0 + 40.0, 0.0, avail_w, self.config.notch.closed_height) {
-                        hits.push((Action::Tab(Tab::Music), r));
-                    }
 
                     let p_x = x1 - 66.0;
                     let t_x = x1 - 44.0;
