@@ -32,7 +32,12 @@ impl App {
         pm.fill(sk::Color::TRANSPARENT);
         mask.data_mut().fill(0);
         let ts = sk::Transform::from_scale(s, s);
-        let shape = notch_path(x0, x1, h, r, ear);
+        let is_island = self.config.notch.is_island();
+        let shape = if is_island {
+            rrect(x0, 0.0, w, h, r.max(h.min(28.0) / 2.0)).unwrap_or_else(|| notch_path(x0, x1, h, r, 0.0))
+        } else {
+            notch_path(x0, x1, h, r, ear)
+        };
 
         let has_satellite = !self.open && h > 16.0 && self.focus.running() && self.info.has_session;
         let sat_w = 32.0;
@@ -1148,9 +1153,9 @@ impl App {
         let card_x = x0 + 18.0;
         let card_w = x1 - x0 - 36.0;
         let card_h = 34.0;
-        let align_x = card_x + 100.0;
+        let align_x = card_x + 84.0;
 
-        // Row 1 Card (y = 45..79): Appearance (Accent swatches + Reset / config.toml)
+        // Row 1 Card (y = 45..79): Appearance (Accent swatches + Position/Monitor/Reset/config.toml)
         let r1_y = 45.0;
         c.card(card_x, r1_y, card_w, card_h, 10.0, false);
         c.icon_badge(card_x + 7.0, r1_y + 6.0, 22.0, 6.0, Icon::Note, 11.5, accent, true);
@@ -1166,7 +1171,7 @@ impl App {
         ];
 
         let mut sx = align_x;
-        let sy = r1_y + 7.0;
+        let sy = r1_y + 8.0;
         let is_auto = self.config.theme.accent_mode.eq_ignore_ascii_case("album_art");
         for (i, (name, color)) in accents.iter().enumerate() {
             let is_sel = if i == 0 {
@@ -1181,43 +1186,70 @@ impl App {
                 })
             };
 
-            let sw_w = if i == 0 { 40.0 } else { 18.0 };
-            let sw_h = 20.0;
+            let sw_w = if i == 0 { 34.0 } else { 16.0 };
+            let sw_h = 18.0;
 
             if is_sel {
-                c.f.fill(rrect(sx - 2.0, sy - 2.0, sw_w + 4.0, sw_h + 4.0, 6.5), WHITE, 0.90 * a);
+                c.f.fill(rrect(sx - 2.0, sy - 2.0, sw_w + 4.0, sw_h + 4.0, 6.0), WHITE, 0.90 * a);
             }
             if i == 0 {
                 let bg = if is_sel { 0.92 } else { 0.14 };
                 let txt_color = if is_sel { BLACK } else { WHITE };
-                c.f.fill(rrect(sx, sy, sw_w, sw_h, 5.0), WHITE, bg * a);
-                c.f.text_center(sx + sw_w / 2.0, sy + 14.0, 10.0, true, txt_color, a, name);
+                c.f.fill(rrect(sx, sy, sw_w, sw_h, 4.5), WHITE, bg * a);
+                c.f.text_center(sx + sw_w / 2.0, sy + 13.0, 9.5, true, txt_color, a, name);
             } else {
-                c.f.fill(rrect(sx, sy, sw_w, sw_h, 5.0), *color, a);
+                c.f.fill(rrect(sx, sy, sw_w, sw_h, 4.5), *color, a);
             }
 
             c.hit(Action::SettingsAccent(i), sx, sy, sw_w, sw_h);
-            sx += sw_w + 7.0;
+            sx += sw_w + 5.5;
         }
 
-        // Right-aligned utility pills inside Row 1: Reset & config.toml
-        let cfg_label = "config.toml";
-        let cfg_w = c.f.width(cfg_label, 10.5, true) + 16.0;
+        // Right-aligned utility pills inside Row 1: Pos, Mon, Reset & config.toml
+        let cfg_label = "Config";
+        let cfg_w = c.f.width(cfg_label, 10.0, true) + 12.0;
         let cfg_x = card_x + card_w - 7.0 - cfg_w;
         let cfg_hover = c.hover == Some(Action::SettingsOpenConfig);
         c.f.fill(rrect(cfg_x, r1_y + 6.0, cfg_w, 22.0, 6.0), WHITE, if cfg_hover { 0.12 } else { 0.05 } * a);
         c.f.stroke(rrect(cfg_x, r1_y + 6.0, cfg_w, 22.0, 6.0), 1.0, WHITE, 0.08 * a);
-        c.f.text_center(cfg_x + cfg_w / 2.0, r1_y + 20.5, 10.5, true, WHITE, if cfg_hover { 0.95 } else { 0.68 } * a, cfg_label);
+        c.f.text_center(cfg_x + cfg_w / 2.0, r1_y + 20.5, 10.0, true, WHITE, if cfg_hover { 0.95 } else { 0.68 } * a, cfg_label);
         c.hit(Action::SettingsOpenConfig, cfg_x, r1_y + 6.0, cfg_w, 22.0);
 
         let rst_label = "Reset";
-        let rst_w = c.f.width(rst_label, 10.5, true) + 16.0;
-        let rst_x = cfg_x - 6.0 - rst_w;
+        let rst_w = c.f.width(rst_label, 10.0, true) + 12.0;
+        let rst_x = cfg_x - 5.0 - rst_w;
         let rst_hover = c.hover == Some(Action::SettingsResetDefaults);
         c.f.fill(rrect(rst_x, r1_y + 6.0, rst_w, 22.0, 6.0), WHITE, if rst_hover { 0.12 } else { 0.05 } * a);
         c.f.stroke(rrect(rst_x, r1_y + 6.0, rst_w, 22.0, 6.0), 1.0, WHITE, 0.08 * a);
-        c.f.text_center(rst_x + rst_w / 2.0, r1_y + 20.5, 10.5, true, WHITE, if rst_hover { 0.95 } else { 0.68 } * a, rst_label);
+        c.f.text_center(rst_x + rst_w / 2.0, r1_y + 20.5, 10.0, true, WHITE, if rst_hover { 0.95 } else { 0.68 } * a, rst_label);
         c.hit(Action::SettingsResetDefaults, rst_x, r1_y + 6.0, rst_w, 22.0);
+
+        let mon_label = match self.config.notch.monitor.to_ascii_lowercase().as_str() {
+            "active" => "Active Mon",
+            "cursor" => "Cursor Mon",
+            _ => "Main Mon",
+        };
+        let mon_w = c.f.width(mon_label, 10.0, true) + 12.0;
+        let mon_x = rst_x - 5.0 - mon_w;
+        let mon_hover = c.hover == Some(Action::SettingsCycleMonitor);
+        c.f.fill(rrect(mon_x, r1_y + 6.0, mon_w, 22.0, 6.0), WHITE, if mon_hover { 0.12 } else { 0.05 } * a);
+        c.f.stroke(rrect(mon_x, r1_y + 6.0, mon_w, 22.0, 6.0), 1.0, WHITE, 0.08 * a);
+        c.f.text_center(mon_x + mon_w / 2.0, r1_y + 20.5, 10.0, true, WHITE, if mon_hover { 0.95 } else { 0.68 } * a, mon_label);
+        c.hit(Action::SettingsCycleMonitor, mon_x, r1_y + 6.0, mon_w, 22.0);
+
+        let pos_label = match self.config.notch.position.to_ascii_lowercase().as_str() {
+            "island" => "Island",
+            "right" => "Right",
+            "left" => "Left",
+            _ => "Center",
+        };
+        let pos_w = c.f.width(pos_label, 10.0, true) + 12.0;
+        let pos_x = mon_x - 5.0 - pos_w;
+        let pos_hover = c.hover == Some(Action::SettingsCyclePosition);
+        c.f.fill(rrect(pos_x, r1_y + 6.0, pos_w, 22.0, 6.0), WHITE, if pos_hover { 0.12 } else { 0.05 } * a);
+        c.f.stroke(rrect(pos_x, r1_y + 6.0, pos_w, 22.0, 6.0), 1.0, WHITE, 0.08 * a);
+        c.f.text_center(pos_x + pos_w / 2.0, r1_y + 20.5, 10.0, true, WHITE, if pos_hover { 0.95 } else { 0.68 } * a, pos_label);
+        c.hit(Action::SettingsCyclePosition, pos_x, r1_y + 6.0, pos_w, 22.0);
 
         // Row 2 Card (y = 83..117): Modules (Tabs)
         let r2_y = 83.0;

@@ -27,6 +27,10 @@ pub struct NotchConfig {
     pub corner_radius: f32,
     /// Corner radius when open in dp (default: 36.0)
     pub open_radius: f32,
+    /// Monitor selection: "primary", "active" (follows active window), or "cursor" (follows cursor)
+    pub monitor: String,
+    /// Horizontal/style placement: "center", "island" (floating pill), "right", or "left"
+    pub position: String,
 }
 
 impl Default for NotchConfig {
@@ -38,7 +42,34 @@ impl Default for NotchConfig {
             open_height: 180.0,
             corner_radius: 12.0,
             open_radius: 36.0,
+            monitor: "primary".to_string(),
+            position: "center".to_string(),
         }
+    }
+}
+
+impl NotchConfig {
+    pub fn is_island(&self) -> bool {
+        self.position.eq_ignore_ascii_case("island")
+    }
+
+    pub fn cycle_position(&mut self) {
+        self.position = match self.position.to_ascii_lowercase().as_str() {
+            "center" => "island",
+            "island" => "right",
+            "right" => "left",
+            _ => "center",
+        }
+        .to_string();
+    }
+
+    pub fn cycle_monitor(&mut self) {
+        self.monitor = match self.monitor.to_ascii_lowercase().as_str() {
+            "primary" => "active",
+            "active" => "cursor",
+            _ => "primary",
+        }
+        .to_string();
     }
 }
 
@@ -206,6 +237,12 @@ corner_radius = 12.0
 
 # Corner curvature radius when opened (dp)
 open_radius = 36.0
+
+# Target monitor: "primary", "active" (follows active window), or "cursor" (follows mouse cursor)
+monitor = "primary"
+
+# Placement style: "center", "island" (detached floating pill), "right", or "left"
+position = "center"
 
 [tabs]
 # Enable or disable individual tabs in the open notch

@@ -132,6 +132,8 @@ enum Action {
     SettingsToggleSlim,
     SettingsToggleHover,
     SettingsToggleAutostart,
+    SettingsCyclePosition,
+    SettingsCycleMonitor,
     SettingsToggleTab(usize),
     SettingsResetDefaults,
     SettingsOpenConfig,

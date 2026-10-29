@@ -577,6 +577,20 @@ impl App {
                 self.play_sound(system::Sound::Pop);
                 self.redraw();
             }
+            Action::SettingsCyclePosition => {
+                self.config.notch.cycle_position();
+                self.config.save();
+                self.play_sound(system::Sound::Pop);
+                self.pos = self.compute_window_pos();
+                self.redraw();
+            }
+            Action::SettingsCycleMonitor => {
+                self.config.notch.cycle_monitor();
+                self.config.save();
+                self.play_sound(system::Sound::Pop);
+                self.pos = self.compute_window_pos();
+                self.redraw();
+            }
             Action::SettingsToggleTab(i) => {
                 match i {
                     0 => self.config.tabs.media = !self.config.tabs.media,
@@ -995,6 +1009,15 @@ impl App {
         }
         self.keyboard = keyboard;
 
+        // Follow active window or cursor monitor when configured
+        if !self.open && !self.hovering {
+            let new_pos = self.compute_window_pos();
+            if new_pos.x != self.pos.x || new_pos.y != self.pos.y {
+                self.pos = new_pos;
+                dirty = true;
+            }
+        }
+
         // step aside during games, fullscreen video, or presentations
         let hide = if self.config.behavior.auto_hide_fullscreen {
             system::fullscreen(self.hwnd, self.backdrop)
@@ -1090,7 +1113,33 @@ impl App {
         }
     }
 
-    /// Calculate DPI scale, prepare bitmap, and center the window at the top of the main screen.
+    pub(crate) fn compute_window_pos(&self) -> POINT {
+        let margin = (12.0 * self.scale).round() as i32;
+        let island_y = if self.config.notch.is_island() {
+            (6.0 * self.scale).round() as i32
+        } else {
+            0
+        };
+        if let Some(mr) = system::target_monitor_rect(self.hwnd, &self.config.notch.monitor) {
+            let mon_w = mr.right - mr.left;
+            let x = match self.config.notch.position.to_ascii_lowercase().as_str() {
+                "left" => mr.left + margin,
+                "right" => mr.right - self.pw as i32 - margin,
+                _ => mr.left + (mon_w - self.pw as i32) / 2,
+            };
+            POINT { x, y: mr.top + island_y }
+        } else {
+            let screen_w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
+            let x = match self.config.notch.position.to_ascii_lowercase().as_str() {
+                "left" => margin,
+                "right" => screen_w - self.pw as i32 - margin,
+                _ => (screen_w - self.pw as i32) / 2,
+            };
+            POINT { x, y: island_y }
+        }
+    }
+
+    /// Calculate DPI scale, prepare bitmap, and position the window on the target monitor.
     pub(crate) fn relayout(&mut self) {
         unsafe {
             self.scale = GetDpiForWindow(self.hwnd) as f32 / 96.0;
@@ -1120,23 +1169,8 @@ impl App {
                 .expect("CreateDIBSection failed");
             self.bits = bits as *mut u8;
             self.old_bmp = SelectObject(self.mem_dc, self.bmp);
-
-            let hmon = MonitorFromWindow(self.hwnd, MONITOR_DEFAULTTOPRIMARY);
-            let mut minfo = MONITORINFO {
-                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
-                ..Default::default()
-            };
-            if GetMonitorInfoW(hmon, &mut minfo).as_bool() {
-                let mon_w = minfo.rcMonitor.right - minfo.rcMonitor.left;
-                self.pos = POINT {
-                    x: minfo.rcMonitor.left + (mon_w - self.pw as i32) / 2,
-                    y: minfo.rcMonitor.top,
-                };
-            } else {
-                let screen_w = GetSystemMetrics(SM_CXSCREEN);
-                self.pos = POINT { x: (screen_w - self.pw as i32) / 2, y: 0 };
-            }
         }
+        self.pos = self.compute_window_pos();
         self.blur_shape = None;
         system::set_blur_shape(self.backdrop, None);
         self.lyric_layout = None;

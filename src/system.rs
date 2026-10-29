@@ -196,6 +196,31 @@ pub fn maximized_on_monitor(ignore1: HWND, ignore2: HWND) -> bool {
     }
 }
 
+/// Returns the monitor bounds (`rcMonitor`) for `"primary"`, `"active"` (foreground window), or `"cursor"`.
+pub fn target_monitor_rect(hwnd: HWND, mode: &str) -> Option<RECT> {
+    unsafe {
+        let hmon = if mode.eq_ignore_ascii_case("cursor") {
+            let mut pt = POINT::default();
+            let _ = GetCursorPos(&mut pt);
+            MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY)
+        } else if mode.eq_ignore_ascii_case("active") {
+            let fg = GetForegroundWindow();
+            if !fg.0.is_null() && fg != hwnd {
+                MonitorFromWindow(fg, MONITOR_DEFAULTTOPRIMARY)
+            } else {
+                MonitorFromPoint(POINT::default(), MONITOR_DEFAULTTOPRIMARY)
+            }
+        } else {
+            MonitorFromPoint(POINT::default(), MONITOR_DEFAULTTOPRIMARY)
+        };
+        let mut minfo = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        GetMonitorInfoW(hmon, &mut minfo).as_bool().then_some(minfo.rcMonitor)
+    }
+}
+
 // ---- Volume notifications via Windows Core Audio (no keyboard hooks needed) -----------
 
 #[windows::core::implement(IAudioEndpointVolumeCallback)]
