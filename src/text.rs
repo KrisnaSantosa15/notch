@@ -79,10 +79,23 @@ impl Fonts {
         let mut cur = String::new();
         for word in text.split_whitespace() {
             let next = if cur.is_empty() { word.to_string() } else { format!("{cur} {word}") };
-            if self.measure(&next, px, bold) <= max || cur.is_empty() {
+            if self.measure(&next, px, bold) <= max {
                 cur = next;
+                continue;
+            }
+            if !cur.is_empty() {
+                lines.push(std::mem::take(&mut cur));
+            }
+            if self.measure(word, px, bold) <= max {
+                cur = word.to_string();
             } else {
-                lines.push(std::mem::replace(&mut cur, word.to_string()));
+                for ch in word.chars() {
+                    let cand = format!("{cur}{ch}");
+                    if !cur.is_empty() && self.measure(&cand, px, bold) > max {
+                        lines.push(std::mem::take(&mut cur));
+                    }
+                    cur.push(ch);
+                }
             }
         }
         if !cur.is_empty() {
@@ -153,5 +166,12 @@ mod tests {
         let mut fonts = Fonts::load();
         assert!(fonts.regular.lookup_glyph_index('あ') == 0);
         assert!(fonts.fallback_for('あ').is_some());
+    }
+
+    #[test]
+    fn wraps_cjk_and_long_words_by_character() {
+        let mut fonts = Fonts::load();
+        let lines = fonts.wrap("あいうえおかきくけこさしすせそ", 14.0, false, 80.0, 4);
+        assert!(lines.len() >= 2);
     }
 }
