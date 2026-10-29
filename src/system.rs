@@ -448,21 +448,6 @@ pub fn play_sound(sound: Sound) {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_wav_generation() {
-        let wav = generate_wav(20, 22050, |_t| 0.0);
-        assert!(wav.len() >= 44);
-        assert_eq!(&wav[0..4], b"RIFF");
-        assert_eq!(&wav[8..12], b"WAVE");
-        assert_eq!(&wav[12..16], b"fmt ");
-        assert_eq!(&wav[36..40], b"data");
-    }
-}
-
 /// GET a URL as text, giving up after 10 s so a stalled connection can't hang the caller forever.
 pub fn http_get(client: &windows::Web::Http::HttpClient, url: &str) -> Option<String> {
     use windows::Foundation::{AsyncStatus, Uri};
@@ -477,4 +462,19 @@ pub fn http_get(client: &windows::Web::Http::HttpClient, url: &str) -> Option<St
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     Some(op.GetResults().ok()?.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_wav_generation() {
+        let wav = generate_wav(20, 22050, |_t| 0.0);
+        assert!(wav.len() >= 44);
+        assert_eq!(&wav[0..4], b"RIFF");
+        assert_eq!(&wav[8..12], b"WAVE");
+        assert_eq!(&wav[12..16], b"fmt ");
+        assert_eq!(&wav[36..40], b"data");
+    }
 }

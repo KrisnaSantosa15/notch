@@ -271,7 +271,7 @@ impl App {
             }
         }
 
-        let moved = self.mouse_pos.map_or(true, |(px, py)| (px - x).hypot(py - y) > 3.0);
+        let moved = self.mouse_pos.is_none_or(|(px, py)| (px - x).hypot(py - y) > 3.0);
         if moved {
             self.mouse_pos = Some((x, y));
             self.last_active = Instant::now();
@@ -861,17 +861,17 @@ impl App {
         if self.open && self.info.playing {
             dirty = true; // progress bar moves
         }
-        if self.live == Live::Idle && self.tick % 5 == 0 {
+        if self.live == Live::Idle && self.tick.is_multiple_of(5) {
             self.blink = true;
             unsafe { SetTimer(self.hwnd, TIMER_BLINK, 140, None) };
             dirty = true;
         }
-        if self.tick % 30 == 0 {
+        if self.tick.is_multiple_of(30) {
             self.battery = system::battery();
         }
 
         // walks the camera/mic consent registry trees: every 3 s is plenty for an indicator
-        if self.tick % 3 == 0 {
+        if self.tick.is_multiple_of(3) {
             let privacy = system::privacy_status();
             if privacy != self.privacy {
                 self.privacy = privacy;
@@ -881,7 +881,7 @@ impl App {
         }
 
         // CPU/RAM are only shown in the open header
-        if self.open && self.tick % 2 == 0 {
+        if self.open && self.tick.is_multiple_of(2) {
             let stats = (system::cpu_usage(), system::ram_usage());
             if stats != self.stats {
                 self.stats = stats;
@@ -1053,8 +1053,8 @@ impl App {
     /// Copy pixels (premultiplied RGBA) to Windows bitmap (BGRA) and present.
     pub(crate) fn present(&self, pm: &sk::Pixmap) {
         let dst = unsafe { std::slice::from_raw_parts_mut(self.bits, (self.pw * self.ph * 4) as usize) };
-        for (d, s) in dst.chunks_exact_mut(4).zip(pm.data().chunks_exact(4)) {
-            d.copy_from_slice(&[s[2], s[1], s[0], s[3]]);
+        for (d, s) in dst.as_chunks_mut::<4>().0.iter_mut().zip(pm.data().as_chunks::<4>().0) {
+            *d = [s[2], s[1], s[0], s[3]];
         }
         let size = SIZE { cx: self.pw as i32, cy: self.ph as i32 };
         let origin = POINT::default();

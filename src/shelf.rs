@@ -70,9 +70,9 @@ unsafe fn bitmap_to_pixmap(bmp: HBITMAP) -> Option<sk::Pixmap> {
 
     // Photos usually have no alpha (all 0) = fully opaque. Icons have alpha, sometimes not
     // premultiplied; tiny-skia requires premultiplied alpha.
-    let no_alpha = data.chunks_exact(4).all(|p| p[3] == 0);
-    let straight = !no_alpha && data.chunks_exact(4).any(|p| p[0].max(p[1]).max(p[2]) > p[3]);
-    for p in data.chunks_exact_mut(4) {
+    let no_alpha = data.as_chunks::<4>().0.iter().all(|p| p[3] == 0);
+    let straight = !no_alpha && data.as_chunks::<4>().0.iter().any(|p| p[0].max(p[1]).max(p[2]) > p[3]);
+    for p in data.as_chunks_mut::<4>().0 {
         p.swap(0, 2); // BGRA -> RGBA
         if no_alpha {
             p[3] = 255;

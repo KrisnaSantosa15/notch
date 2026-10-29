@@ -154,7 +154,7 @@ mod tests {
     fn fetches_from_lrclib() {
         let l = fetch("Tulus - Hati-Hati di Jalan (Official Music Video)", "TULUS", 0.0).expect("lyrics found");
         assert!(l.lines.len() > 10);
-        println!("{} lines, sample: {:?}", l.lines.len(), &l.lines[3]);
+        println!("{} lines, sample: {:?}", l.lines.len(), l.lines[3]);
     }
 
     #[test]

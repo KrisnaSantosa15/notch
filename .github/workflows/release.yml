@@ -20,11 +20,22 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Verify tag matches Cargo.toml version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME.TrimStart('v')
+          $cargo = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"').Matches.Groups[1].Value
+          if ($tag -ne $cargo) {
+            Write-Error "Tag version ($tag) does not match Cargo.toml version ($cargo)"
+            exit 1
+          }
+
       - name: Run tests
-        run: cargo test
+        run: cargo test --locked
 
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --release --locked
 
       - name: Package release assets
         shell: pwsh

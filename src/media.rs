@@ -278,7 +278,7 @@ fn fetch_art(props: &Props) -> windows::core::Result<Art> {
         .DetachPixelData()?;
 
     let mut data = pixels.to_vec();
-    for px in data.chunks_exact_mut(4) {
+    for px in data.as_chunks_mut::<4>().0 {
         px.swap(0, 2); // BGRA -> RGBA
     }
     let accent = accent_of(&data);
@@ -291,7 +291,7 @@ fn fetch_art(props: &Props) -> windows::core::Result<Art> {
 /// Most vibrant color from artwork, brightened for readability on dark backgrounds.
 fn accent_of(rgba: &[u8]) -> [u8; 3] {
     let (mut sum, mut total) = ([0f32; 3], 0f32);
-    for px in rgba.chunks_exact(4) {
+    for px in rgba.as_chunks::<4>().0 {
         let [r, g, b] = [px[0] as f32, px[1] as f32, px[2] as f32];
         let sat = r.max(g).max(b) - r.min(g).min(b);
         let weight = sat * sat + 1.0;

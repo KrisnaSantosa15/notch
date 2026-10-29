@@ -3,24 +3,13 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub notch: NotchConfig,
     pub tabs: TabsConfig,
     pub theme: ThemeConfig,
     pub behavior: BehaviorConfig,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            notch: NotchConfig::default(),
-            tabs: TabsConfig::default(),
-            theme: ThemeConfig::default(),
-            behavior: BehaviorConfig::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

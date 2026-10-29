@@ -141,12 +141,6 @@ impl Frame<'_> {
         }
     }
 
-    /// Pair of glowing eyes, mascot when idle.
-    #[allow(clippy::too_many_arguments)]
-    pub fn eyes(&mut self, cx: f32, cy: f32, r: f32, gap: f32, blink: bool, a: f32) {
-        self.expressive_eyes(cx, cy, r, gap, blink, 0.0, EyeMood::Normal, a);
-    }
-
     /// Pair of glowing eyes with horizontal look direction offset.
     #[allow(clippy::too_many_arguments)]
     pub fn animated_eyes(&mut self, cx: f32, cy: f32, r: f32, gap: f32, blink: bool, look_x: f32, a: f32) {
