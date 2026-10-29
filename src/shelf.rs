@@ -2,6 +2,7 @@
 //! and can later be dragged out to chat, email, or other folders.
 
 use crate::with_app;
+use std::sync::{mpsc, Mutex, OnceLock};
 use tiny_skia as sk;
 use windows::core::{implement, Result, HSTRING, PCWSTR};
 use windows::Win32::Foundation::*;
@@ -11,7 +12,10 @@ use windows::Win32::System::Ole::*;
 use windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS;
 use windows::Win32::UI::Shell::Common::ITEMIDLIST;
 use windows::Win32::UI::Shell::*;
-use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+use windows::Win32::UI::WindowsAndMessaging::{PostMessageW, SW_SHOWNORMAL};
+
+static READY_THUMBS: Mutex<Vec<(String, sk::Pixmap)>> = Mutex::new(Vec::new());
+static THUMB_WORKER: OnceLock<mpsc::Sender<(String, u32, isize, u32)>> = OnceLock::new();
 
 pub struct Item {
     pub path: String,
@@ -20,14 +24,41 @@ pub struct Item {
 }
 
 impl Item {
-    pub fn new(path: String, px: u32) -> Item {
+    pub fn new(path: String, px: u32, hwnd: HWND, msg: u32) -> Item {
         let name = std::path::Path::new(&path)
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| path.clone());
-        let thumb = thumbnail(&path, px);
-        Item { path, name, thumb }
+        request_thumbnail(path.clone(), px, hwnd.0 as isize, msg);
+        Item { path, name, thumb: None }
     }
+}
+
+fn request_thumbnail(path: String, px: u32, hwnd: isize, msg: u32) {
+    let tx = THUMB_WORKER.get_or_init(|| {
+        let (tx, rx) = mpsc::channel::<(String, u32, isize, u32)>();
+        std::thread::spawn(move || {
+            unsafe {
+                let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+            }
+            while let Ok((path, px, hwnd, msg)) = rx.recv() {
+                if let Some(pixmap) = thumbnail(&path, px) {
+                    if let Ok(mut ready) = READY_THUMBS.lock() {
+                        ready.push((path, pixmap));
+                    }
+                    unsafe {
+                        let _ = PostMessageW(HWND(hwnd as _), msg, WPARAM(0), LPARAM(0));
+                    }
+                }
+            }
+        });
+        tx
+    });
+    let _ = tx.send((path, px, hwnd, msg));
+}
+
+pub fn take_ready_thumbs() -> Vec<(String, sk::Pixmap)> {
+    READY_THUMBS.lock().map(|mut v| std::mem::take(&mut *v)).unwrap_or_default()
 }
 
 /// Windows Explorer thumbnail: image/PDF preview or application icon.

@@ -47,6 +47,7 @@ const WM_APP_MEDIA: u32 = WM_APP + 1;
 const WM_APP_KEY: u32 = WM_APP + 2;
 const WM_APP_TRAY: u32 = WM_APP + 3;
 const WM_APP_UPDATE: u32 = WM_APP + 4;
+const WM_APP_THUMB: u32 = WM_APP + 5;
 const WM_MOUSELEAVE: u32 = 0x02A3; // not exported by WindowsAndMessaging module
 const PBT_APMPOWERSTATUSCHANGE: usize = 0x0A;
 const HOTKEY_TOGGLE: i32 = 100;
@@ -496,6 +497,9 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
         WM_APP_MEDIA => {
             with_app(|a| a.on_media());
         }
+        WM_APP_THUMB => {
+            with_app(|a| a.on_thumb_ready());
+        }
         WM_APP_UPDATE => {
             with_app(|a| {
                 a.redraw();
@@ -695,7 +699,7 @@ fn main() -> Result<()> {
             lyrics: media::LyricsSlot { key: String::new(), state: media::LyricsState::Missing },
             lyric_line: None,
             lyric_layout: None,
-            shelf: saved.files.into_iter().map(|p| shelf::Item::new(p, px)).collect(),
+            shelf: saved.files.into_iter().map(|p| shelf::Item::new(p, px, hwnd, WM_APP_THUMB)).collect(),
             shelf_scroll: 0,
             drag_in: false,
             tasks: saved.tasks,

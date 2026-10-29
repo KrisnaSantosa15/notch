@@ -693,7 +693,7 @@ impl App {
         let px = (48.0 * self.scale) as u32;
         for path in paths {
             if !self.shelf.iter().any(|i| i.path == path) {
-                self.shelf.push(shelf::Item::new(path, px));
+                self.shelf.push(shelf::Item::new(path, px, self.hwnd, WM_APP_THUMB));
             }
         }
         self.shelf_scroll = self.shelf.len().saturating_sub(SHELF_VISIBLE);
@@ -701,6 +701,19 @@ impl App {
         self.save();
         self.schedule_close(1400); // let the result stay visible for a moment
         self.retarget();
+    }
+
+    pub(crate) fn on_thumb_ready(&mut self) {
+        let mut updated = false;
+        for (path, pixmap) in shelf::take_ready_thumbs() {
+            if let Some(item) = self.shelf.iter_mut().find(|i| i.path == path) {
+                item.thumb = Some(pixmap);
+                updated = true;
+            }
+        }
+        if updated && self.open && self.tab == Tab::Shelf {
+            self.redraw();
+        }
     }
 
     pub(crate) fn after_drag_out(&mut self) {
