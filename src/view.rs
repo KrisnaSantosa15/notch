@@ -7,6 +7,7 @@ const PRESETS: [u32; 4] = [5, 15, 25, 45];
 const DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const SHELF_VISIBLE: usize = 5;
 const TASKS_VISIBLE: usize = 3;
+const CLIPS_VISIBLE: usize = 3;
 const LYRIC_ROW: f32 = 19.0;
 
 impl App {
@@ -186,6 +187,7 @@ impl App {
                 Tab::Focus => self.draw_focus(&mut c, x0, x1),
                 Tab::Shelf => self.draw_shelf(&mut c, x0, x1, cx),
                 Tab::Tasks => self.draw_tasks(&mut c, x0, x1, cx),
+                Tab::Clipboard => self.draw_clipboard(&mut c, x0, x1, cx),
                 Tab::Settings => self.draw_settings(&mut c, x0, x1, cx),
             }
         }
@@ -436,6 +438,9 @@ impl App {
         }
         if self.config.tabs.tasks {
             tabs.push((Tab::Tasks, "Tasks", open_tasks));
+        }
+        if self.config.tabs.clipboard {
+            tabs.push((Tab::Clipboard, "Clips", self.clips.len()));
         }
         tabs.push((Tab::Settings, "Settings", 0));
         let mut x = x0 + 22.0;
@@ -918,6 +923,79 @@ impl App {
         c.hit(Action::TaskInput, fx, fy, fw, 26.0);
     }
 
+    fn draw_clipboard(&mut self, c: &mut Ctx, x0: f32, x1: f32, cx: f32) {
+        let a = c.a;
+        let accent = self.accent();
+        let len = self.clips.len();
+        if len == 0 {
+            c.f.text_center(cx, 78.0, 14.0, true, WHITE, a, "Clipboard is empty");
+            c.f.text_center(
+                cx,
+                100.0,
+                12.0,
+                false,
+                WHITE,
+                a * SOFT,
+                "Copy any text to see your recent 30 items (kept in memory only).",
+            );
+            return;
+        }
+
+        for (slot, i) in (self.clip_scroll..len).take(CLIPS_VISIBLE).enumerate() {
+            let entry = &self.clips[i];
+            let y = 44.0 + slot as f32 * 30.0;
+            let hovered = matches!(c.hover, Some(Action::ClipCopy(j) | Action::ClipRemove(j)) if j == i);
+            if hovered {
+                c.f.fill(rrect(x0 + 18.0, y, x1 - x0 - 36.0, 26.0, 9.0), WHITE, 0.08 * a);
+            }
+
+            let trimmed = entry.trim();
+            let (kind, badge_rgb) = if trimmed.starts_with("https://") || trimmed.starts_with("http://") {
+                ("URL", accent)
+            } else if trimmed.contains("fn ")
+                || trimmed.contains("const ")
+                || trimmed.contains("=>")
+                || (trimmed.contains('{') && trimmed.contains('}'))
+            {
+                ("CODE", ORANGE)
+            } else {
+                ("TXT", WHITE)
+            };
+
+            let bx = x0 + 26.0;
+            c.f.fill(rrect(bx, y + 4.0, 34.0, 18.0, 5.0), badge_rgb, 0.16 * a);
+            c.f.text_center(bx + 17.0, y + 16.5, 9.5, true, badge_rgb, 0.95 * a, kind);
+
+            let single_line: String = entry.split_whitespace().collect::<Vec<_>>().join(" ");
+            let preview = c.f.fit(&single_line, 12.5, false, (x1 - 76.0) - (bx + 42.0));
+            c.f.text(bx + 42.0, y + 17.5, 12.5, false, WHITE, a * 0.92, &preview);
+
+            let copied_recently = self
+                .clip_copied
+                .is_some_and(|(idx, t)| idx == i && t.elapsed().as_secs_f32() < 1.4);
+            if copied_recently {
+                c.f.text_right(x1 - 28.0, y + 17.5, 11.0, true, GREEN, a, "Copied");
+            } else if hovered {
+                c.button(Action::ClipRemove(i), x1 - 36.0, y + 13.0, 10.0, Icon::Close, 8.0);
+            } else {
+                let meta = format!("{}c", entry.chars().count());
+                c.f.text_right(x1 - 28.0, y + 17.5, 11.0, false, WHITE, a * SOFT * 0.75, &meta);
+            }
+            c.hit(Action::ClipRemove(i), x1 - 46.0, y, 20.0, 26.0);
+            c.hit(Action::ClipCopy(i), x0 + 18.0, y, x1 - x0 - 66.0, 26.0);
+        }
+
+        let hint = if len > CLIPS_VISIBLE {
+            let first = self.clip_scroll + 1;
+            format!("{first}–{} of {len} · scroll for more", (first + CLIPS_VISIBLE - 1).min(len))
+        } else {
+            "In-memory only · click to copy".to_string()
+        };
+        c.f.text(x0 + 26.0, 162.0, 11.0, false, WHITE, a * SOFT, &hint);
+        let clear_w = c.f.width("Clear", 12.0, true) + 24.0;
+        c.pill(Action::ClipClear, x1 - 24.0 - clear_w, 145.0, "Clear", None, false, false);
+    }
+
     fn draw_settings(&mut self, c: &mut Ctx, x0: f32, x1: f32, _cx: f32) {
         let a = c.a;
         let accent = self.accent();
@@ -995,6 +1073,7 @@ impl App {
             ("Focus", self.config.tabs.focus),
             ("Shelf", self.config.tabs.shelf),
             ("Tasks", self.config.tabs.tasks),
+            ("Clips", self.config.tabs.clipboard),
         ];
         let mut tx = align_x;
         for (idx, (t_name, on)) in tabs.iter().enumerate() {

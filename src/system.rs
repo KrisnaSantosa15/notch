@@ -198,6 +198,41 @@ pub fn clipboard_text(hwnd: HWND) -> Option<String> {
     }
 }
 
+pub fn set_clipboard_text(hwnd: HWND, text: &str) -> bool {
+    use windows::Win32::System::DataExchange::{CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData};
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    use windows::Win32::System::Ole::CF_UNICODETEXT;
+    unsafe {
+        if OpenClipboard(hwnd).is_err() {
+            return false;
+        }
+        let _ = EmptyClipboard();
+        let utf16: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
+        let ok = GlobalAlloc(GMEM_MOVEABLE, utf16.len() * 2).ok().is_some_and(|h| {
+            let ptr = GlobalLock(h) as *mut u16;
+            if ptr.is_null() {
+                return false;
+            }
+            std::ptr::copy_nonoverlapping(utf16.as_ptr(), ptr, utf16.len());
+            let _ = GlobalUnlock(h);
+            SetClipboardData(CF_UNICODETEXT.0 as u32, HANDLE(h.0)).is_ok()
+        });
+        let _ = CloseClipboard();
+        ok
+    }
+}
+
+pub fn set_clipboard_listener(hwnd: HWND, enable: bool) {
+    use windows::Win32::System::DataExchange::{AddClipboardFormatListener, RemoveClipboardFormatListener};
+    unsafe {
+        if enable {
+            let _ = AddClipboardFormatListener(hwnd);
+        } else {
+            let _ = RemoveClipboardFormatListener(hwnd);
+        }
+    }
+}
+
 // ---- System Stats (CPU & RAM) ------------------------------------------------------------
 
 pub fn ram_usage() -> u8 {

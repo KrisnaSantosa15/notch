@@ -49,6 +49,7 @@ pub struct TabsConfig {
     pub focus: bool,
     pub shelf: bool,
     pub tasks: bool,
+    pub clipboard: bool,
 }
 
 impl Default for TabsConfig {
@@ -58,6 +59,7 @@ impl Default for TabsConfig {
             focus: true,
             shelf: true,
             tasks: true,
+            clipboard: false,
         }
     }
 }
@@ -208,6 +210,7 @@ media = true
 focus = true
 shelf = true
 tasks = true
+clipboard = false
 
 [theme]
 # Accent color mode: "album_art" (adapts to music album art) or "custom"

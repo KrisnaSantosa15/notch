@@ -72,6 +72,7 @@ enum Tab {
     Focus,
     Shelf,
     Tasks,
+    Clipboard,
     Settings,
 }
 
@@ -95,6 +96,9 @@ enum Action {
     TaskRemove(usize),
     TaskInput,
     TaskSubmit,
+    ClipCopy(usize),
+    ClipRemove(usize),
+    ClipClear,
     OpenUpdate,
     TogglePin,
     SettingsAccent(usize),
@@ -278,6 +282,11 @@ struct App {
     draft_time_since: Option<Instant>,
     caret: bool,
 
+    clips: Vec<String>,
+    clip_scroll: usize,
+    clip_copied: Option<(usize, Instant)>,
+    clip_listening: bool,
+
     fonts: Option<text::Fonts>,
     /// Pixmap + mask reused across frames instead of reallocating the whole canvas each render.
     canvas: Option<(sk::Pixmap, sk::Mask)>,
@@ -312,6 +321,7 @@ impl App {
             Tab::Focus => self.config.tabs.focus,
             Tab::Shelf => self.config.tabs.shelf,
             Tab::Tasks => self.config.tabs.tasks,
+            Tab::Clipboard => self.config.tabs.clipboard,
             Tab::Settings => true,
         }
     }
@@ -325,6 +335,8 @@ impl App {
             Tab::Shelf
         } else if self.config.tabs.tasks {
             Tab::Tasks
+        } else if self.config.tabs.clipboard {
+            Tab::Clipboard
         } else {
             Tab::Music
         }
@@ -488,6 +500,9 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
         WM_DPICHANGED | WM_DISPLAYCHANGE => {
             with_app(|a| a.relayout());
         }
+        WM_CLIPBOARDUPDATE => {
+            with_app(|a| a.on_clipboard_update());
+        }
         WM_HOTKEY => match wp.0 as i32 {
             HOTKEY_TOGGLE => {
                 with_app(|a| a.toggle_open());
@@ -508,6 +523,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
                 ..Default::default()
             };
             let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
+            system::set_clipboard_listener(hwnd, false);
             let _ = UnregisterHotKey(hwnd, HOTKEY_TOGGLE);
             let _ = UnregisterHotKey(hwnd, HOTKEY_ESC);
             let _ = UnregisterHotKey(hwnd, HOTKEY_PIN);
@@ -675,6 +691,10 @@ fn main() -> Result<()> {
             surrogate: None,
             draft_time_since: None,
             caret: true,
+            clips: Vec::new(),
+            clip_scroll: 0,
+            clip_copied: None,
+            clip_listening: false,
             fonts: Some(text::Fonts::load()),
             canvas: None,
             config: cfg,
@@ -684,6 +704,7 @@ fn main() -> Result<()> {
         };
         APP.with(|cell| *cell.borrow_mut() = Some(app));
         with_app(|a| {
+            a.sync_clipboard_listener();
             a.relayout();
         });
 

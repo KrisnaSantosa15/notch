@@ -6,6 +6,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::*;
 
 const SHELF_VISIBLE: usize = 5;
 const TASKS_VISIBLE: usize = 3;
+const CLIPS_VISIBLE: usize = 3;
+const MAX_CLIPS: usize = 30;
 
 impl App {
     fn current_live(&self) -> Live {
@@ -473,6 +475,26 @@ impl App {
             }
             Action::TaskInput => self.start_editing(),
             Action::TaskSubmit => self.on_char(0x0D),
+            Action::ClipCopy(i) => {
+                if let Some(text) = self.clips.get(i).cloned() {
+                    if system::set_clipboard_text(self.hwnd, &text) {
+                        self.play_sound(system::Sound::Pop);
+                        self.clip_copied = Some((0, Instant::now()));
+                    }
+                }
+            }
+            Action::ClipRemove(i) => {
+                if i < self.clips.len() {
+                    self.play_sound(system::Sound::Pop);
+                    self.clips.remove(i);
+                    self.clamp_scroll();
+                }
+            }
+            Action::ClipClear => {
+                self.play_sound(system::Sound::Pop);
+                self.clips.clear();
+                self.clip_scroll = 0;
+            }
             Action::OpenUpdate => {
                 if let Some(info) = update::UPDATE_AVAILABLE.read().ok().and_then(|u| u.clone()) {
                     shelf::open(&info.url);
@@ -536,7 +558,11 @@ impl App {
                     0 => self.config.tabs.media = !self.config.tabs.media,
                     1 => self.config.tabs.focus = !self.config.tabs.focus,
                     2 => self.config.tabs.shelf = !self.config.tabs.shelf,
-                    _ => self.config.tabs.tasks = !self.config.tabs.tasks,
+                    3 => self.config.tabs.tasks = !self.config.tabs.tasks,
+                    _ => {
+                        self.config.tabs.clipboard = !self.config.tabs.clipboard;
+                        self.sync_clipboard_listener();
+                    }
                 }
                 self.config.save();
                 self.play_sound(system::Sound::Pop);
@@ -545,6 +571,7 @@ impl App {
             Action::SettingsResetDefaults => {
                 self.config = config::Config::default();
                 self.config.save();
+                self.sync_clipboard_listener();
                 self.play_sound(system::Sound::Pop);
                 self.relayout();
                 self.retarget();
@@ -571,11 +598,12 @@ impl App {
 
     pub(crate) fn on_wheel(&mut self, delta: i16) {
         let step = if delta > 0 { -1 } else { 1 };
-        if self.open && matches!(self.tab, Tab::Shelf | Tab::Tasks) {
-            if self.tab == Tab::Shelf {
-                self.shelf_scroll = self.shelf_scroll.saturating_add_signed(step);
-            } else {
-                self.task_scroll = self.task_scroll.saturating_add_signed(step);
+        if self.open && matches!(self.tab, Tab::Shelf | Tab::Tasks | Tab::Clipboard) {
+            match self.tab {
+                Tab::Shelf => self.shelf_scroll = self.shelf_scroll.saturating_add_signed(step),
+                Tab::Tasks => self.task_scroll = self.task_scroll.saturating_add_signed(step),
+                Tab::Clipboard => self.clip_scroll = self.clip_scroll.saturating_add_signed(step),
+                _ => {}
             }
             self.clamp_scroll();
             self.redraw();
@@ -603,6 +631,36 @@ impl App {
     fn clamp_scroll(&mut self) {
         self.shelf_scroll = self.shelf_scroll.min(self.shelf.len().saturating_sub(SHELF_VISIBLE));
         self.task_scroll = self.task_scroll.min(self.tasks.len().saturating_sub(TASKS_VISIBLE));
+        self.clip_scroll = self.clip_scroll.min(self.clips.len().saturating_sub(CLIPS_VISIBLE));
+    }
+
+    pub(crate) fn sync_clipboard_listener(&mut self) {
+        if self.config.tabs.clipboard != self.clip_listening {
+            self.clip_listening = self.config.tabs.clipboard;
+            system::set_clipboard_listener(self.hwnd, self.clip_listening);
+            if self.clip_listening {
+                self.on_clipboard_update();
+            }
+        }
+    }
+
+    pub(crate) fn on_clipboard_update(&mut self) {
+        if !self.config.tabs.clipboard {
+            return;
+        }
+        let Some(text) = system::clipboard_text(self.hwnd) else {
+            return;
+        };
+        if text.trim().is_empty() {
+            return;
+        }
+        self.clips.retain(|c| c != &text);
+        self.clips.insert(0, text);
+        self.clips.truncate(MAX_CLIPS);
+        self.clamp_scroll();
+        if self.open && self.tab == Tab::Clipboard {
+            self.redraw();
+        }
     }
 
     // ---- Shelf: drag and drop in / out ---------------------------------------------------
@@ -845,6 +903,10 @@ impl App {
         }
         if self.happy_until.is_some_and(|t| Instant::now() >= t) {
             self.happy_until = None;
+            dirty = true;
+        }
+        if self.clip_copied.is_some_and(|(_, t)| t.elapsed().as_secs_f32() >= 1.4) {
+            self.clip_copied = None;
             dirty = true;
         }
 
