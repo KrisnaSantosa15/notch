@@ -421,6 +421,9 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
         WM_LBUTTONUP => {
             with_app(|a| a.on_click(x, y));
         }
+        WM_MBUTTONUP => {
+            with_app(|a| a.on_middle_click());
+        }
         WM_MOUSEWHEEL => {
             with_app(|a| a.on_wheel((wp.0 >> 16) as i16));
         }

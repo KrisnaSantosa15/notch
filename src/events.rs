@@ -337,6 +337,19 @@ impl App {
         self.press = self.hit_rect(x, y).map(|(a, _)| (a, x, y));
     }
 
+    pub(crate) fn on_middle_click(&mut self) {
+        if !self.open && self.info.has_session {
+            unsafe {
+                let _ = KillTimer(self.hwnd, TIMER_HOVER);
+            }
+            self.play_sound(system::Sound::Pop);
+            self.media.send(media::Cmd::Toggle);
+            self.info.playing = !self.info.playing;
+            self.update_live_timer();
+            self.redraw();
+        }
+    }
+
     pub(crate) fn on_click(&mut self, x: f32, y: f32) {
         if self.welcome_tour {
             self.welcome_tour = false;
