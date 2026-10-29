@@ -629,6 +629,12 @@ impl App {
                 }
                 self.play_sound(system::Sound::Pop);
             }
+            Action::SettingsOpenWidgets => {
+                if let Some(dir) = widgets::ensure_dir_and_sample() {
+                    shelf::open(&dir.to_string_lossy());
+                }
+                self.play_sound(system::Sound::Pop);
+            }
         }
         self.sync_lyric();
         self.retarget();

@@ -607,7 +607,36 @@ impl App {
                 left_info = dot_x;
             }
 
-            // System stats (CPU & RAM) displayed subtly in the header gap when space permits
+            // Notchlets custom widgets or System stats (CPU & RAM) in the header gap
+            let widgets = self
+                .widgets
+                .lock()
+                .ok()
+                .map(|w| w.clone())
+                .unwrap_or_default();
+            if !widgets.is_empty() {
+                let mut wx = left_info - 8.0;
+                for badge in widgets.iter().rev() {
+                    let badge_text = if badge.label.is_empty() {
+                        badge.value.clone()
+                    } else {
+                        format!("{} {}", badge.label, badge.value)
+                    };
+                    let bw = c.f.width(&badge_text, 10.0, true) + 12.0;
+                    if wx - bw < x + 6.0 {
+                        break;
+                    }
+                    let bx = wx - bw;
+                    let by = 14.0;
+                    let bh = 18.0;
+                    let tint = badge.color.unwrap_or(accent);
+                    c.f.fill(rrect(bx, by, bw, bh, 5.0), tint, 0.14 * a);
+                    c.f.stroke(rrect(bx, by, bw, bh, 5.0), 1.0, tint, 0.32 * a);
+                    c.f.text_center(bx + bw / 2.0, by + 12.8, 10.0, true, WHITE, 0.90 * a, &badge_text);
+                    wx = bx - 5.0;
+                }
+                left_info = wx;
+            }
             if self.stats.1 > 0 {
                 let stats_text = format!("CPU {}% · RAM {}%", self.stats.0, self.stats.1);
                 let stats_w = c.f.width(&stats_text, 10.5, false);
@@ -1319,6 +1348,16 @@ impl App {
             let pw = c.chip(Action::SettingsToggleTab(idx), tx, r2_y + 6.0, t_name, *on, accent);
             tx += pw + 6.0;
         }
+
+        // Right-aligned "Widgets" folder button inside Row 2 (`%APPDATA%\Notch\widgets\`)
+        let wdg_label = "Widgets";
+        let wdg_w = c.f.width(wdg_label, 10.0, true) + 12.0;
+        let wdg_x = card_x + card_w - 7.0 - wdg_w;
+        let wdg_hover = c.hover == Some(Action::SettingsOpenWidgets);
+        c.f.fill(rrect(wdg_x, r2_y + 6.0, wdg_w, 22.0, 6.0), WHITE, if wdg_hover { 0.12 } else { 0.05 } * a);
+        c.f.stroke(rrect(wdg_x, r2_y + 6.0, wdg_w, 22.0, 6.0), 1.0, WHITE, 0.08 * a);
+        c.f.text_center(wdg_x + wdg_w / 2.0, r2_y + 20.5, 10.0, true, WHITE, if wdg_hover { 0.95 } else { 0.68 } * a, wdg_label);
+        c.hit(Action::SettingsOpenWidgets, wdg_x, r2_y + 6.0, wdg_w, 22.0);
 
         // Row 3 Card (y = 121..155): Behavior & System
         let r3_y = 121.0;

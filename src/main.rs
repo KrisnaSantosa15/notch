@@ -19,6 +19,7 @@ mod tasks;
 mod text;
 mod ui;
 mod view;
+mod widgets;
 pub(crate) mod config;
 pub(crate) mod update;
 
@@ -48,6 +49,7 @@ const WM_APP_KEY: u32 = WM_APP + 2;
 const WM_APP_TRAY: u32 = WM_APP + 3;
 const WM_APP_UPDATE: u32 = WM_APP + 4;
 const WM_APP_THUMB: u32 = WM_APP + 5;
+const WM_APP_WIDGET: u32 = WM_APP + 6;
 const WM_MOUSELEAVE: u32 = 0x02A3; // not exported by WindowsAndMessaging module
 const PBT_APMPOWERSTATUSCHANGE: usize = 0x0A;
 const HOTKEY_TOGGLE: i32 = 100;
@@ -137,6 +139,7 @@ enum Action {
     SettingsToggleTab(usize),
     SettingsResetDefaults,
     SettingsOpenConfig,
+    SettingsOpenWidgets,
 }
 
 /// Brief HUD message that appears for ~2 seconds then disappears.
@@ -323,6 +326,7 @@ struct App {
     pub(crate) welcomed: bool,
     pub(crate) welcome_tour: bool,
     pub(crate) welcome_since: Instant,
+    widgets: Arc<std::sync::Mutex<Vec<widgets::WidgetBadge>>>,
 }
 
 thread_local! {
@@ -504,7 +508,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
         WM_APP_THUMB => {
             with_app(|a| a.on_thumb_ready());
         }
-        WM_APP_UPDATE => {
+        WM_APP_UPDATE | WM_APP_WIDGET => {
             with_app(|a| {
                 a.redraw();
             });
@@ -724,6 +728,7 @@ fn main() -> Result<()> {
             welcomed: saved.welcomed,
             welcome_tour: !saved.welcomed,
             welcome_since: now,
+            widgets: widgets::start(hwnd.0 as isize, WM_APP_WIDGET),
         };
         APP.with(|cell| *cell.borrow_mut() = Some(app));
         with_app(|a| {
