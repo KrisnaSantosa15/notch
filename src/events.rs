@@ -131,6 +131,13 @@ impl App {
         self.redraw();
     }
 
+    pub(crate) fn is_slim(&self, live: Live) -> bool {
+        !self.open
+            && !self.hovering
+            && self.slim
+            && !matches!(live, Live::Hud(_) | Live::Alert | Live::Reminder | Live::Welcome)
+    }
+
     /// Recalculate notch target dimensions and start its animation.
     pub(crate) fn retarget(&mut self) {
         let live = self.current_live();
@@ -140,6 +147,8 @@ impl App {
         self.live = live;
         let (w, h, r) = if self.open {
             (self.config.notch.open_width, self.config.notch.open_height, self.config.notch.open_radius)
+        } else if self.is_slim(live) {
+            (104.0, 5.0, 2.5)
         } else {
             (self.live_width(live), self.config.notch.closed_height, self.config.notch.corner_radius)
         };
@@ -253,6 +262,9 @@ impl App {
             };
             unsafe {
                 let _ = TrackMouseEvent(&mut tme);
+            }
+            if self.slim && !self.open {
+                self.retarget();
             }
             if !self.open && self.config.behavior.hover_to_open {
                 let delay = self.config.behavior.hover_delay_ms;
@@ -542,6 +554,15 @@ impl App {
                 self.config.behavior.auto_hide_fullscreen = !self.config.behavior.auto_hide_fullscreen;
                 self.config.save();
                 self.play_sound(system::Sound::Pop);
+                self.redraw();
+            }
+            Action::SettingsToggleSlim => {
+                self.config.behavior.auto_slim_maximized = !self.config.behavior.auto_slim_maximized;
+                self.slim = self.config.behavior.auto_slim_maximized
+                    && system::maximized_on_monitor(self.hwnd, self.backdrop);
+                self.config.save();
+                self.play_sound(system::Sound::Pop);
+                self.retarget();
                 self.redraw();
             }
             Action::SettingsToggleHover => {
@@ -980,6 +1001,15 @@ impl App {
         } else {
             false
         };
+        let slim = !hide
+            && self.config.behavior.auto_slim_maximized
+            && system::maximized_on_monitor(self.hwnd, self.backdrop);
+        if slim != self.slim {
+            self.slim = slim;
+            if !self.open {
+                self.retarget();
+            }
+        }
         if hide != self.hidden {
             self.hidden = hide;
             if hide && self.open {

@@ -93,6 +93,8 @@ pub struct BehaviorConfig {
     pub hover_to_open: bool,
     /// Whether to automatically hide notch during fullscreen apps/games/videos (default: true)
     pub auto_hide_fullscreen: bool,
+    /// Whether to shrink closed notch to a thin 5dp peek-through bar when a maximized window is active (default: true)
+    pub auto_slim_maximized: bool,
     /// Whether to play subtle tactile sound effects on interactions (default: true)
     pub sound_effects: bool,
     /// Global shortcut to toggle the notch open/closed (default: "Win+Alt+N")
@@ -106,6 +108,7 @@ impl Default for BehaviorConfig {
             hover_delay_ms: 120,
             hover_to_open: true,
             auto_hide_fullscreen: true,
+            auto_slim_maximized: true,
             sound_effects: true,
             toggle_hotkey: "Win+Alt+N".to_string(),
         }
@@ -231,6 +234,9 @@ hover_to_open = true
 
 # Whether to automatically hide notch during fullscreen apps, games, or videos
 auto_hide_fullscreen = true
+
+# Whether to shrink the closed notch to a thin peek-through bar when a window is maximized
+auto_slim_maximized = true
 
 # Whether to play subtle tactile sound effects on interactions (e.g. Pomodoro, shelf, tasks)
 sound_effects = true

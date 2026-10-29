@@ -15,8 +15,9 @@ impl App {
         let s = self.scale;
         let cx = (self.pw as f32 / s) / 2.0;
         let w = self.w.x.max(60.0);
-        let h = self.h.x.max(EAR + 6.0);
-        let r = self.r.x.clamp(0.0, (h - EAR).min(w / 2.0));
+        let h = self.h.x.max(4.0);
+        let ear = EAR.min(h * 0.45);
+        let r = self.r.x.clamp(0.0, (h - ear).max(0.0).min(w / 2.0));
         let (x0, x1) = (cx - w / 2.0, cx + w / 2.0);
 
         // How open the notch is (0..1), used for glass opacity and content cross-fading.
@@ -31,9 +32,9 @@ impl App {
         pm.fill(sk::Color::TRANSPARENT);
         mask.data_mut().fill(0);
         let ts = sk::Transform::from_scale(s, s);
-        let shape = notch_path(x0, x1, h, r, EAR);
+        let shape = notch_path(x0, x1, h, r, ear);
 
-        let has_satellite = !self.open && self.focus.running() && self.info.has_session;
+        let has_satellite = !self.open && h > 16.0 && self.focus.running() && self.info.has_session;
         let sat_w = 32.0;
         let sat_h = self.config.notch.closed_height;
         let sat_x = x1 + EAR + 8.0;
@@ -100,11 +101,21 @@ impl App {
             mask.fill_path(sp, sk::FillRule::Winding, true, ts);
         }
 
-        let closed_a = (1.0 - t * 3.0).clamp(0.0, 1.0) * self.content_alpha();
+        let slim_t = ((h - 7.0) / (closed_h - 7.0).max(1.0)).clamp(0.0, 1.0);
+        let closed_a = (1.0 - t * 3.0).clamp(0.0, 1.0) * slim_t * self.content_alpha();
         let open_a = ((t - 0.55) / 0.45).clamp(0.0, 1.0);
 
         let mut fonts = self.fonts.take().unwrap();
         let mut f = Frame { pm, mask, s, fonts: &mut fonts };
+        if slim_t < 1.0 && !self.open {
+            let slim_a = (1.0 - slim_t) * 0.75;
+            let indicator_color = if self.info.playing || self.focus.running() {
+                self.accent()
+            } else {
+                WHITE
+            };
+            f.fill(rrect(cx - 20.0, (h - 2.0).max(1.0) / 2.0, 40.0, 2.0, 1.0), indicator_color, slim_a);
+        }
         // Specular glass rim highlight: ambient reflection + dynamic cursor glint
         if t > 0.0 {
             f.stroke(Some(shape.clone()), 1.2, WHITE, 0.11 * t);
@@ -1235,7 +1246,8 @@ impl App {
 
         let behaviors = [
             (Action::SettingsToggleSound, "Sound", self.config.behavior.sound_effects),
-            (Action::SettingsToggleHover, "Hover Open", self.config.behavior.hover_to_open),
+            (Action::SettingsToggleHover, "Hover", self.config.behavior.hover_to_open),
+            (Action::SettingsToggleSlim, "Slim Dodge", self.config.behavior.auto_slim_maximized),
             (Action::SettingsToggleFullscreen, "Auto-Hide", self.config.behavior.auto_hide_fullscreen),
             (Action::SettingsToggleAutostart, "Autostart", system::autostart()),
         ];

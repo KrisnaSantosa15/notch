@@ -176,6 +176,26 @@ pub fn fullscreen(ignore1: HWND, ignore2: HWND) -> bool {
     }
 }
 
+/// True when the active foreground window on the notch's monitor is maximized (e.g. browser with top tabs).
+pub fn maximized_on_monitor(ignore1: HWND, ignore2: HWND) -> bool {
+    unsafe {
+        let fg = GetForegroundWindow();
+        if fg.0.is_null()
+            || fg == GetDesktopWindow()
+            || fg == GetShellWindow()
+            || fg == ignore1
+            || fg == ignore2
+        {
+            return false;
+        }
+        if !IsZoomed(fg).as_bool() {
+            return false;
+        }
+        let hmon = MonitorFromWindow(fg, MONITOR_DEFAULTTONULL);
+        !hmon.0.is_null() && hmon == MonitorFromWindow(ignore1, MONITOR_DEFAULTTOPRIMARY)
+    }
+}
+
 // ---- Volume notifications via Windows Core Audio (no keyboard hooks needed) -----------
 
 #[windows::core::implement(IAudioEndpointVolumeCallback)]
