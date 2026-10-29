@@ -423,30 +423,29 @@ impl App {
 
     // ---- Open notch -------------------------------------------------------------------------
 
-    /// Top header: tabs on the left, battery (or date) and clock on the right.
+    /// Top header: hybrid icon+label tabs on the left, status and utility buttons (Settings, Pin) on the right.
     fn draw_header(&mut self, c: &mut Ctx, x0: f32, x1: f32) {
         let open_tasks = self.tasks.iter().filter(|t| !t.done).count();
+        let accent = self.accent();
         let mut tabs = Vec::new();
         if self.config.tabs.media {
-            tabs.push((Tab::Music, "Music", 0));
+            tabs.push((Tab::Music, Icon::Note, "Music", 0));
         }
         if self.config.tabs.focus {
-            tabs.push((Tab::Focus, "Focus", 0));
+            tabs.push((Tab::Focus, Icon::Timer, "Focus", 0));
         }
         if self.config.tabs.shelf {
-            tabs.push((Tab::Shelf, "Shelf", self.shelf.len()));
+            tabs.push((Tab::Shelf, Icon::Tray, "Shelf", self.shelf.len()));
         }
         if self.config.tabs.tasks {
-            tabs.push((Tab::Tasks, "Tasks", open_tasks));
+            tabs.push((Tab::Tasks, Icon::Tasks, "Tasks", open_tasks));
         }
         if self.config.tabs.clipboard {
-            tabs.push((Tab::Clipboard, "Clips", self.clips.len()));
+            tabs.push((Tab::Clipboard, Icon::Clipboard, "Clips", self.clips.len()));
         }
-        tabs.push((Tab::Settings, "Settings", 0));
-        let mut x = x0 + 22.0;
-        for (tab, label, count) in tabs {
-            let badge = (count > 0).then(|| count.to_string());
-            x += c.pill(Action::Tab(tab), x, 12.0, label, badge.as_deref(), self.tab == tab, false) + 4.0;
+        let mut x = x0 + 20.0;
+        for (tab, icon, label, count) in tabs {
+            x += c.tab_item(tab, x, 12.0, icon, label, count, self.tab == tab, accent) + 4.0;
         }
 
         if let Some(info) = update::UPDATE_AVAILABLE.read().ok().and_then(|u| u.clone()) {
@@ -454,18 +453,24 @@ impl App {
             x += c.pill(Action::OpenUpdate, x, 12.0, &label, None, false, false) + 4.0;
         }
 
-        let accent = self.accent();
-        c.toggle(Action::TogglePin, x + 12.0, 24.0, 12.0, Icon::Pin, 12.0, self.pinned, accent);
-        x += 28.0;
-
         let a = c.a;
+        // Right-side utility icon buttons: Settings (gear) and Pin
+        let pin_cx = x1 - 30.0;
+        let set_cx = x1 - 56.0;
+        c.util_btn(Action::Tab(Tab::Settings), set_cx, 24.0, 11.0, Icon::Gear, 12.5, self.tab == Tab::Settings, accent);
+        c.util_btn(Action::TogglePin, pin_cx, 24.0, 11.0, Icon::Pin, 11.5, self.pinned, accent);
+
+        // Subtle vertical separator between status and utility buttons
+        let div_x = x1 - 73.0;
+        c.f.fill(rrect(div_x, 17.0, 1.0, 14.0, 0.5), WHITE, 0.12 * a);
+        let status_right = x1 - 81.0;
+
         if let Some(Hud::Volume(level, muted)) = self.hud {
-            let accent = self.accent();
             let waves = if muted || level <= 0.0 { 0 } else { 1 + (level * 2.99) as u8 };
             let vol_txt = if muted { "Muted".to_string() } else { format!("{}%", (level * 100.0).round()) };
-            let pill_w = 124.0;
+            let pill_w = 120.0;
             let pill_h = 24.0;
-            let pill_x = x1 - 26.0 - pill_w;
+            let pill_x = status_right - pill_w;
             let pill_y = 12.0;
 
             // Sleek volume capsule
@@ -477,7 +482,7 @@ impl App {
 
             // Mini level bar
             let bar_x = pill_x + 28.0;
-            let bar_w = 50.0;
+            let bar_w = 46.0;
             let bar_y = pill_y + 10.0;
             c.f.fill(rrect(bar_x, bar_y, bar_w, 4.0, 2.0), WHITE, 0.20 * a);
             let fill_w = if muted { 0.0 } else { bar_w * level };
@@ -490,39 +495,41 @@ impl App {
         } else {
             let now = unsafe { GetLocalTime() };
             let clock = format!("{:02}:{:02}", now.wHour, now.wMinute);
-            let right = c.f.text_right(x1 - 26.0, 29.0, 13.0, true, WHITE, a, &clock);
-            let left_info = match self.battery {
+            let right = c.f.text_right(status_right, 28.5, 12.5, true, WHITE, a, &clock);
+            let mut left_info = match self.battery {
                 Some((charging, pct)) => {
-                    c.f.icon(Icon::Battery(pct as f32 / 100.0, charging), right - 20.0, 24.5, 16.0, WHITE, a);
-                    c.f.text_right(right - 33.0, 29.0, 12.0, false, WHITE, a * SOFT, &format!("{pct}%"))
+                    c.f.icon(Icon::Battery(pct as f32 / 100.0, charging), right - 18.0, 24.0, 15.0, WHITE, a);
+                    c.f.text_right(right - 30.0, 28.5, 11.5, false, WHITE, a * SOFT, &format!("{pct}%"))
                 }
                 None => {
                     let day = format!("{} {}", DAYS[now.wDayOfWeek as usize % 7], now.wDay);
-                    c.f.text_right(right - 8.0, 29.0, 13.0, false, WHITE, a * SOFT, &day)
+                    c.f.text_right(right - 8.0, 28.5, 12.0, false, WHITE, a * SOFT, &day)
                 }
             };
 
-            // System stats (CPU & RAM) displayed subtly in the header gap
-            if self.stats.1 > 0 {
-                let stats_text = format!("CPU {}%  RAM {}%", self.stats.0, self.stats.1);
-                let stats_w = c.f.width(&stats_text, 11.0, false);
-                if left_info - stats_w - 16.0 > x {
-                    c.f.text_right(left_info - 16.0, 29.0, 11.0, false, WHITE, a * SOFT * 0.75, &stats_text);
+            let (cam, mic) = self.privacy;
+            if cam || mic {
+                let mut dot_x = left_info - 10.0;
+                if cam {
+                    c.f.circle(dot_x, 24.0, 5.0, GREEN, 0.28 * a);
+                    c.f.circle(dot_x, 24.0, 3.0, GREEN, a);
+                    dot_x -= 10.0;
                 }
+                if mic {
+                    c.f.circle(dot_x, 24.0, 5.0, ORANGE, 0.28 * a);
+                    c.f.circle(dot_x, 24.0, 3.0, ORANGE, a);
+                    dot_x -= 10.0;
+                }
+                left_info = dot_x;
             }
-        }
 
-        let (cam, mic) = self.privacy;
-        if cam || mic {
-            let mut dot_x = x1 - 16.0;
-            if cam {
-                c.f.circle(dot_x, 18.0, 5.0, GREEN, 0.28 * a);
-                c.f.circle(dot_x, 18.0, 3.0, GREEN, a);
-                dot_x -= 10.0;
-            }
-            if mic {
-                c.f.circle(dot_x, 18.0, 5.0, ORANGE, 0.28 * a);
-                c.f.circle(dot_x, 18.0, 3.0, ORANGE, a);
+            // System stats (CPU & RAM) displayed subtly in the header gap when space permits
+            if self.stats.1 > 0 {
+                let stats_text = format!("CPU {}% · RAM {}%", self.stats.0, self.stats.1);
+                let stats_w = c.f.width(&stats_text, 10.5, false);
+                if left_info - stats_w - 14.0 > x {
+                    c.f.text_right(left_info - 12.0, 28.5, 10.5, false, WHITE, a * SOFT * 0.72, &stats_text);
+                }
             }
         }
     }
@@ -1133,6 +1140,83 @@ impl Ctx<'_, '_> {
         let color = if on { accent } else { WHITE };
         self.f.icon(icon, cx, cy, size, color, if on { a } else { a * 0.75 });
         self.hit(action, cx - r, cy - r, r * 2.0, r * 2.0);
+    }
+
+    /// Header utility icon button (Settings gear, Pin) with subtle circular glass surface.
+    #[allow(clippy::too_many_arguments)]
+    fn util_btn(&mut self, action: Action, cx: f32, cy: f32, r: f32, icon: Icon, size: f32, on: bool, accent: [u8; 3]) {
+        let a = self.a;
+        let hovered = self.hover == Some(action);
+        if on {
+            self.f.circle(cx, cy, r, accent, 0.24 * a);
+            self.f.stroke(sk::PathBuilder::from_circle(cx, cy, r), 1.0, accent, 0.45 * a);
+        } else {
+            self.f.circle(cx, cy, r, WHITE, if hovered { 0.14 } else { 0.06 } * a);
+        }
+        let color = if on { accent } else { WHITE };
+        let icon_a = if on || hovered { a } else { a * 0.72 };
+        self.f.icon(icon, cx, cy, size, color, icon_a);
+        self.hit(action, cx - r, cy - r, r * 2.0, r * 2.0);
+    }
+
+    /// Hybrid tab item: expands to `[Icon + Label]` when selected, collapses to compact `[Icon + Badge]` when inactive.
+    #[allow(clippy::too_many_arguments)]
+    fn tab_item(
+        &mut self,
+        tab: Tab,
+        x: f32,
+        y: f32,
+        icon: Icon,
+        label: &str,
+        count: usize,
+        selected: bool,
+        accent: [u8; 3],
+    ) -> f32 {
+        let a = self.a;
+        let action = Action::Tab(tab);
+        let hovered = self.hover == Some(action);
+        let h = 24.0;
+        let cy = y + h / 2.0;
+
+        if selected {
+            let label_w = self.f.width(label, 12.0, true);
+            let badge_str = (count > 0).then(|| count.to_string());
+            let badge_w = badge_str.as_deref().map_or(0.0, |b| self.f.width(b, 10.5, true) + 6.0);
+            let w = 26.0 + label_w + badge_w + 11.0;
+
+            self.f.fill(rrect(x, y, w, h, 12.0), WHITE, 0.15 * a);
+            self.f.stroke(rrect(x, y, w, h, 12.0), 1.0, WHITE, 0.12 * a);
+            self.f.icon(icon, x + 14.0, cy, 13.0, accent, a);
+            self.f.text(x + 25.0, y + 16.5, 12.0, true, WHITE, a, label);
+            if let Some(b) = badge_str {
+                self.f.text(x + 29.0 + label_w, y + 16.0, 10.5, true, accent, a * 0.95, &b);
+            }
+            self.hit(action, x, y, w, h);
+            w
+        } else {
+            let w = 28.0;
+            self.f.fill(
+                rrect(x, y, w, h, 12.0),
+                WHITE,
+                if hovered { 0.12 } else { 0.04 } * a,
+            );
+            self.f.icon(
+                icon,
+                x + w / 2.0,
+                cy,
+                13.0,
+                WHITE,
+                if hovered { 0.95 } else { 0.62 } * a,
+            );
+            if count > 0 {
+                let badge = count.min(99).to_string();
+                let (bx, by) = (x + w - 5.0, y + 5.5);
+                self.f.circle(bx, by, 6.2, accent, 0.95 * a);
+                self.f.text_center(bx, by + 3.2, 8.5, true, BLACK, a, &badge);
+            }
+            self.hit(action, x, y, w, h);
+            w
+        }
     }
 
     /// Text pill (tab or preset), with optional small badge. Returns its width.

@@ -386,10 +386,15 @@ impl App {
         match action {
             Action::Tab(tab) => {
                 self.play_sound(system::Sound::Pop);
-                self.tab = tab;
+                if tab == Tab::Settings && self.open && self.tab == Tab::Settings {
+                    self.tab = self.first_enabled_tab();
+                } else {
+                    self.tab = tab;
+                }
                 if !self.open {
                     self.open = true;
                     self.hovering = true;
+                    self.hover_ready = true;
                 }
             }
             Action::Prev => self.media.send(media::Cmd::Prev),

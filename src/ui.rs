@@ -29,8 +29,12 @@ pub enum Icon {
     /// fill (0..1), is_charging
     Battery(f32, bool),
     Note,
+    Timer,
     Lyrics,
     Tray,
+    Tasks,
+    Clipboard,
+    Gear,
     Check,
     Close,
     Plus,
@@ -320,6 +324,16 @@ impl Frame<'_> {
                     a,
                 );
             }
+            Icon::Timer => {
+                self.stroke(sk::PathBuilder::from_circle(cx, cy + z * 0.06, z * 0.40), z * 0.10, rgb, a);
+                self.stroke(line(cx - z * 0.14, cy - z * 0.46, cx + z * 0.14, cy - z * 0.46), z * 0.10, rgb, a);
+                self.stroke(
+                    poly_open(&[(cx, cy - z * 0.16), (cx, cy + z * 0.06), (cx + z * 0.16, cy + z * 0.16)]),
+                    z * 0.10,
+                    rgb,
+                    a,
+                );
+            }
             Icon::Lyrics => {
                 // quote bubble: three lines of text with varying lengths
                 for (i, len) in [1.0, 0.72, 0.86].iter().enumerate() {
@@ -347,6 +361,34 @@ impl Frame<'_> {
                     rgb,
                     a,
                 );
+            }
+            Icon::Tasks => {
+                self.stroke(rrect(cx - z * 0.40, cy - z * 0.40, z * 0.80, z * 0.80, z * 0.20), z * 0.10, rgb, a);
+                self.stroke(
+                    poly_open(&[(cx - z * 0.18, cy + z * 0.02), (cx - z * 0.04, cy + z * 0.16), (cx + z * 0.20, cy - z * 0.12)]),
+                    z * 0.11,
+                    rgb,
+                    a,
+                );
+            }
+            Icon::Clipboard => {
+                self.stroke(rrect(cx - z * 0.34, cy - z * 0.34, z * 0.68, z * 0.78, z * 0.14), z * 0.10, rgb, a);
+                self.fill(rrect(cx - z * 0.18, cy - z * 0.46, z * 0.36, z * 0.16, z * 0.06), rgb, a);
+                self.stroke(line(cx - z * 0.16, cy - z * 0.02, cx + z * 0.16, cy - z * 0.02), z * 0.09, rgb, a);
+                self.stroke(line(cx - z * 0.16, cy + z * 0.18, cx + z * 0.08, cy + z * 0.18), z * 0.09, rgb, a);
+            }
+            Icon::Gear => {
+                self.stroke(sk::PathBuilder::from_circle(cx, cy, z * 0.26), z * 0.12, rgb, a);
+                for i in 0..6 {
+                    let rad = (i as f32 * 60.0).to_radians();
+                    let (c, s) = (rad.cos(), rad.sin());
+                    self.stroke(
+                        line(cx + c * z * 0.26, cy + s * z * 0.26, cx + c * z * 0.44, cy + s * z * 0.44),
+                        z * 0.13,
+                        rgb,
+                        a,
+                    );
+                }
             }
             Icon::Check => self.stroke(
                 poly_open(&[(cx - z * 0.36, cy + z * 0.02), (cx - z * 0.1, cy + z * 0.28), (cx + z * 0.4, cy - z * 0.26)]),

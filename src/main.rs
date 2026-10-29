@@ -716,6 +716,8 @@ fn main() -> Result<()> {
                     "focus" => Tab::Focus,
                     "shelf" => Tab::Shelf,
                     "tasks" => Tab::Tasks,
+                    "clips" | "clipboard" => Tab::Clipboard,
+                    "settings" => Tab::Settings,
                     _ => Tab::Music,
                 };
                 if tab == "focus" {
