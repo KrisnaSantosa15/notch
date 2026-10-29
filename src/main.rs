@@ -50,6 +50,7 @@ const WM_APP_UPDATE: u32 = WM_APP + 4;
 const WM_MOUSELEAVE: u32 = 0x02A3; // not exported by WindowsAndMessaging module
 const PBT_APMPOWERSTATUSCHANGE: usize = 0x0A;
 const HOTKEY_TOGGLE: i32 = 100;
+const HOTKEY_ESC: i32 = 101;
 
 const TIMER_ANIM: usize = 1;
 const TIMER_TICK: usize = 2;
@@ -227,6 +228,7 @@ struct App {
     hidden: bool,
     animating: bool,
     live_timer: bool,
+    esc_hotkey: bool,
     last_frame: Instant,
     started: Instant,
     live: Live,
@@ -476,11 +478,15 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
         WM_DPICHANGED | WM_DISPLAYCHANGE => {
             with_app(|a| a.relayout());
         }
-        WM_HOTKEY => {
-            if wp.0 as i32 == HOTKEY_TOGGLE {
+        WM_HOTKEY => match wp.0 as i32 {
+            HOTKEY_TOGGLE => {
                 with_app(|a| a.toggle_open());
             }
-        }
+            HOTKEY_ESC => {
+                with_app(|a| a.on_escape());
+            }
+            _ => {}
+        },
         WM_DESTROY => {
             let nid = NOTIFYICONDATAW {
                 cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
@@ -490,6 +496,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             };
             let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
             let _ = UnregisterHotKey(hwnd, HOTKEY_TOGGLE);
+            let _ = UnregisterHotKey(hwnd, HOTKEY_ESC);
             PostQuitMessage(0);
         }
         _ => return DefWindowProcW(hwnd, msg, wp, lp),
@@ -592,6 +599,7 @@ fn main() -> Result<()> {
             hidden: false,
             animating: false,
             live_timer: false,
+            esc_hotkey: false,
             last_frame: now,
             started: now,
             live: Live::Idle,

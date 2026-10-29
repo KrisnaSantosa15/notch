@@ -87,6 +87,22 @@ impl App {
         self.retarget();
     }
 
+    pub(crate) fn on_escape(&mut self) {
+        if self.editing {
+            self.draft.clear();
+            self.stop_editing();
+            return;
+        }
+        if self.open {
+            self.open = false;
+            self.hovering = false;
+            self.hover_ready = false;
+            self.hover = None;
+            self.press = None;
+            self.retarget();
+        }
+    }
+
     pub(crate) fn show_welcome(&mut self) {
         self.welcome_tour = true;
         self.welcome_since = Instant::now();
@@ -116,6 +132,16 @@ impl App {
         self.r.to = r;
         self.start_animation();
         self.update_live_timer();
+        if self.open != self.esc_hotkey {
+            self.esc_hotkey = self.open;
+            unsafe {
+                if self.open {
+                    let _ = RegisterHotKey(self.hwnd, HOTKEY_ESC, MOD_NOREPEAT, VK_ESCAPE.0 as u32);
+                } else {
+                    let _ = UnregisterHotKey(self.hwnd, HOTKEY_ESC);
+                }
+            }
+        }
     }
 
     pub(crate) fn start_animation(&mut self) {
