@@ -570,6 +570,8 @@ fn main() -> Result<()> {
 
         shelf::register(hwnd); // also initializes COM for thumbnails and volume
         let cfg = config::load();
+        let (toggle_mods, toggle_vk) = config::parse_hotkey(&cfg.behavior.toggle_hotkey)
+            .unwrap_or(((MOD_WIN | MOD_ALT | MOD_NOREPEAT).0, 'N' as u32));
         let saved = store::load();
         let px = (48.0 * GetDpiForWindow(hwnd) as f32 / 96.0) as u32;
         let now = Instant::now();
@@ -676,7 +678,7 @@ fn main() -> Result<()> {
         let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE); // glass window appears automatically when the notch opens
         SetTimer(hwnd, TIMER_TICK, 1000, None);
         system::register_volume_notify(hwnd, WM_APP_KEY);
-        let _ = RegisterHotKey(hwnd, HOTKEY_TOGGLE, MOD_WIN | MOD_ALT | MOD_NOREPEAT, 'N' as u32);
+        let _ = RegisterHotKey(hwnd, HOTKEY_TOGGLE, HOT_KEY_MODIFIERS(toggle_mods), toggle_vk);
         let _ = RegisterHotKey(hwnd, HOTKEY_PIN, MOD_WIN | MOD_ALT | MOD_NOREPEAT, 'P' as u32);
 
         let update_hwnd = hwnd.0 as isize;

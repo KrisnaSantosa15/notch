@@ -104,6 +104,8 @@ pub struct BehaviorConfig {
     pub auto_hide_fullscreen: bool,
     /// Whether to play subtle tactile sound effects on interactions (default: true)
     pub sound_effects: bool,
+    /// Global shortcut to toggle the notch open/closed (default: "Win+Alt+N")
+    pub toggle_hotkey: String,
 }
 
 impl Default for BehaviorConfig {
@@ -114,12 +116,58 @@ impl Default for BehaviorConfig {
             hover_to_open: true,
             auto_hide_fullscreen: true,
             sound_effects: true,
+            toggle_hotkey: "Win+Alt+N".to_string(),
         }
     }
 }
 
 pub fn path() -> Option<PathBuf> {
     Some(PathBuf::from(std::env::var("APPDATA").ok()?).join("Notch").join("config.toml"))
+}
+
+/// Parses a shortcut string like "Win+Alt+N" or "Ctrl+Space" into Win32 `(MOD_* | MOD_NOREPEAT, VK_*)`.
+pub fn parse_hotkey(spec: &str) -> Option<(u32, u32)> {
+    const MOD_ALT: u32 = 0x0001;
+    const MOD_CONTROL: u32 = 0x0002;
+    const MOD_SHIFT: u32 = 0x0004;
+    const MOD_WIN: u32 = 0x0008;
+    const MOD_NOREPEAT: u32 = 0x4000;
+
+    let mut mods = 0u32;
+    let mut vk = None;
+    for part in spec.split('+').map(str::trim).filter(|s| !s.is_empty()) {
+        match part.to_ascii_lowercase().as_str() {
+            "win" | "super" | "meta" => mods |= MOD_WIN,
+            "alt" => mods |= MOD_ALT,
+            "ctrl" | "control" => mods |= MOD_CONTROL,
+            "shift" => mods |= MOD_SHIFT,
+            "space" => vk = Some(0x20),
+            "tab" => vk = Some(0x09),
+            k if k.len() == 1 => {
+                let b = k.as_bytes()[0];
+                if b.is_ascii_alphabetic() {
+                    vk = Some(b.to_ascii_uppercase() as u32);
+                } else if b.is_ascii_digit() {
+                    vk = Some(b as u32);
+                } else {
+                    return None;
+                }
+            }
+            k if k.starts_with('f') => {
+                let n: u32 = k[1..].parse().ok()?;
+                if (1..=12).contains(&n) {
+                    vk = Some(0x70 + n - 1);
+                } else {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+    if mods == 0 {
+        return None;
+    }
+    Some((mods | MOD_NOREPEAT, vk?))
 }
 
 /// Parses hex color strings like "#3B82F6", "3B82F6", "#FFF", or "FFF".
@@ -194,6 +242,9 @@ auto_hide_fullscreen = true
 
 # Whether to play subtle tactile sound effects on interactions (e.g. Pomodoro, shelf, tasks)
 sound_effects = true
+
+# Global keyboard shortcut to toggle the notch open or closed
+toggle_hotkey = "Win+Alt+N"
 "##;
 
 pub fn load() -> Config {
@@ -266,6 +317,16 @@ mod tests {
         assert_eq!(cfg.behavior.hover_delay_ms, 120);
         assert!(cfg.behavior.auto_hide_fullscreen);
         assert!(cfg.behavior.sound_effects);
+        assert_eq!(cfg.behavior.toggle_hotkey, "Win+Alt+N");
+    }
+
+    #[test]
+    fn parses_hotkey_strings() {
+        assert_eq!(parse_hotkey("Win+Alt+N"), Some((0x4009, b'N' as u32)));
+        assert_eq!(parse_hotkey("ctrl + space"), Some((0x4002, 0x20)));
+        assert_eq!(parse_hotkey("Alt+Shift+F1"), Some((0x4005, 0x70)));
+        assert_eq!(parse_hotkey("N"), None);
+        assert_eq!(parse_hotkey("Win+"), None);
     }
 
     #[test]

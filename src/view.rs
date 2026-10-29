@@ -280,11 +280,12 @@ impl App {
                 let blink = (t % 3.8) < 0.15;
                 f.animated_eyes(left, cy, 3.2, 8.0, blink, look, a);
 
+                let hotkey_tip = format!("Press {}", self.config.behavior.toggle_hotkey);
                 let tips = [
                     "Welcome to Notch",
                     "Hover or click to open",
                     "Drag files here to Shelf",
-                    "Press Win+Alt+N",
+                    hotkey_tip.as_str(),
                 ];
                 let idx = ((t / 3.0) as usize) % tips.len();
                 f.text_center(cx, 21.0, 12.0, true, WHITE, a, tips[idx]);
