@@ -25,7 +25,7 @@ Notch reads the following locally to show it in the notch. None of it is sent an
 - **Camera and microphone status:** whether an app is currently using them, read from Windows' privacy settings. Notch never opens or records from the camera or microphone.
 - **System status:** CPU and memory usage, battery and charging state, volume, Caps Lock and keyboard layout.
 - **Fullscreen detection:** the size of the window in front, so Notch can hide during games, video and presentations. It does not read window contents.
-- **Clipboard:** only when you paste into the task field yourself.
+- **Clipboard:** only when you paste into the task field yourself, or while the optional **Clips** tab is turned on in Settings (up to 30 text entries kept in memory only, never saved to disk).
 
 Notch saves the following in `%APPDATA%\Notch\`:
 

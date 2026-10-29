@@ -2,6 +2,24 @@
 
 All notable changes to Notch are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Hover delay (`hover_delay_ms = 120` in `config.toml`) so sweeping past the notch toward browser tabs does not accidentally open it.
+- Pressing `Esc` collapses the open notch from anywhere.
+- Pin button in the header and `Win + Alt + P` shortcut to keep the notch open while working.
+- Configurable global toggle shortcut (`toggle_hotkey = "Win+Alt+N"` in `config.toml`).
+- Middle-click on the closed media notch to immediately play or pause without opening the panel.
+- Expressive idle eyes that glance toward the cursor, smile (`^ ^`) when a task or Pomodoro finishes, and grow sleepy after 5 minutes of inactivity.
+- Optional **Clips** tab (off by default in Settings) keeping your last 30 copied text items in memory only, with URL/code badges and click-to-copy.
+- GitHub Actions CI workflow (`clippy` and tests on every push and PR) and tag-version verification on release.
+
+### Fixed
+- Tray icon is automatically restored when Windows Explorer restarts (`TaskbarCreated`).
+- Typing or pasting emoji (UTF-16 surrogate pairs) into tasks now works.
+- CJK lyrics and long unbroken strings now wrap by character when a single word exceeds the column width.
+- Clipboard UTF-16 reads are bounded by `GlobalSize`, and update URLs are validated against the official repository prefix before opening.
+
 ## [0.5.1] - 2026-10-28
 
 ### Added
