@@ -77,14 +77,14 @@ impl App {
             }
         }
 
-        // body: solid black when closed (blends into screen bezel), dark glass when open
+        // body: solid black when closed (blends into screen bezel), deep obsidian when open
         let mix = |a: [u8; 3]| a.map(|v| (v as f32 * t) as u8);
-        let alpha = 1.0 - 0.04 * t;
+        let alpha = 1.0 - 0.02 * t;
         let c = |rgb: [u8; 3]| sk::Color::from_rgba8(rgb[0], rgb[1], rgb[2], (alpha * 255.0) as u8);
         let body = sk::LinearGradient::new(
             sk::Point::from_xy(0.0, 0.0),
             sk::Point::from_xy(0.0, h),
-            vec![sk::GradientStop::new(0.0, c(mix([34, 34, 40]))), sk::GradientStop::new(1.0, c(mix([14, 14, 18])))],
+            vec![sk::GradientStop::new(0.0, c(mix([18, 18, 22]))), sk::GradientStop::new(1.0, c(mix([10, 10, 13])))],
             sk::SpreadMode::Pad,
             sk::Transform::identity(),
         )
@@ -417,8 +417,9 @@ impl App {
 
     // ---- Open notch -------------------------------------------------------------------------
 
-    /// Top header: hybrid icon+label tabs on the left, status and utility buttons (Settings, Pin) on the right.
+    /// Top header: recessed icon-dock tabs on the left, status and utility buttons (Settings, Pin) on the right.
     fn draw_header(&mut self, c: &mut Ctx, x0: f32, x1: f32) {
+        let a = c.a;
         let open_tasks = self.tasks.iter().filter(|t| !t.done).count();
         let accent = self.accent();
         let mut tabs = Vec::new();
@@ -437,27 +438,50 @@ impl App {
         if self.config.tabs.clipboard {
             tabs.push((Tab::Clipboard, Icon::Clipboard, "Clips", self.clips.len()));
         }
-        let mut x = x0 + 20.0;
-        for (tab, icon, label, count) in tabs {
-            x += c.tab_item(tab, x, 12.0, icon, label, count, self.tab == tab, accent) + 4.0;
+
+        // Measure dock width first so we can draw a recessed dock container around the tab bar
+        let dock_x = x0 + 18.0;
+        let mut total_tabs_w = 6.0;
+        for (idx, (tab, _, label, count)) in tabs.iter().enumerate() {
+            if idx > 0 {
+                total_tabs_w += 3.0;
+            }
+            if self.tab == *tab {
+                let label_w = c.f.width(label, 11.5, true);
+                let badge_w = if *count > 0 {
+                    c.f.width(&count.to_string(), 10.0, true) + 6.0
+                } else {
+                    0.0
+                };
+                total_tabs_w += 25.0 + label_w + badge_w + 10.0;
+            } else {
+                total_tabs_w += 26.0;
+            }
         }
+        c.f.fill(rrect(dock_x, 9.0, total_tabs_w, 28.0, 10.0), WHITE, 0.038 * a);
+        c.f.stroke(rrect(dock_x, 9.0, total_tabs_w, 28.0, 10.0), 1.0, WHITE, 0.075 * a);
+
+        let mut x = dock_x + 3.0;
+        for (tab, icon, label, count) in tabs {
+            x += c.tab_item(tab, x, 11.0, icon, label, count, self.tab == tab, accent) + 3.0;
+        }
+        x += 4.0;
 
         if let Some(info) = update::UPDATE_AVAILABLE.read().ok().and_then(|u| u.clone()) {
             let label = format!("Update {}", info.tag);
-            x += c.pill(Action::OpenUpdate, x, 12.0, &label, None, false, false) + 4.0;
+            x += c.pill(Action::OpenUpdate, x, 11.0, &label, None, false, false) + 4.0;
         }
 
-        let a = c.a;
         // Right-side utility icon buttons: Settings (gear) and Pin
-        let pin_cx = x1 - 30.0;
-        let set_cx = x1 - 56.0;
-        c.util_btn(Action::Tab(Tab::Settings), set_cx, 24.0, 11.0, Icon::Gear, 12.5, self.tab == Tab::Settings, accent);
-        c.util_btn(Action::TogglePin, pin_cx, 24.0, 11.0, Icon::Pin, 11.5, self.pinned, accent);
+        let pin_cx = x1 - 29.0;
+        let set_cx = x1 - 55.0;
+        c.util_btn(Action::Tab(Tab::Settings), set_cx, 23.0, 11.0, Icon::Gear, 12.5, self.tab == Tab::Settings, accent);
+        c.util_btn(Action::TogglePin, pin_cx, 23.0, 11.0, Icon::Pin, 11.5, self.pinned, accent);
 
         // Subtle vertical separator between status and utility buttons
-        let div_x = x1 - 73.0;
-        c.f.fill(rrect(div_x, 17.0, 1.0, 14.0, 0.5), WHITE, 0.12 * a);
-        let status_right = x1 - 81.0;
+        let div_x = x1 - 72.0;
+        c.f.fill(rrect(div_x, 16.0, 1.0, 14.0, 0.5), WHITE, 0.10 * a);
+        let status_right = x1 - 80.0;
 
         if let Some(Hud::Volume(level, muted)) = self.hud {
             let waves = if muted || level <= 0.0 { 0 } else { 1 + (level * 2.99) as u8 };
@@ -465,11 +489,11 @@ impl App {
             let pill_w = 120.0;
             let pill_h = 24.0;
             let pill_x = status_right - pill_w;
-            let pill_y = 12.0;
+            let pill_y = 11.0;
 
             // Sleek volume capsule
-            c.f.fill(rrect(pill_x, pill_y, pill_w, pill_h, 12.0), WHITE, 0.12 * a);
-            c.f.stroke(rrect(pill_x, pill_y, pill_w, pill_h, 12.0), 1.0, accent, 0.35 * a);
+            c.f.fill(rrect(pill_x, pill_y, pill_w, pill_h, 8.0), WHITE, 0.08 * a);
+            c.f.stroke(rrect(pill_x, pill_y, pill_w, pill_h, 8.0), 1.0, accent, 0.35 * a);
 
             // Speaker icon
             c.f.icon(Icon::Speaker(waves), pill_x + 14.0, pill_y + 12.0, 14.0, WHITE, a);
@@ -489,15 +513,15 @@ impl App {
         } else {
             let now = unsafe { GetLocalTime() };
             let clock = format!("{:02}:{:02}", now.wHour, now.wMinute);
-            let right = c.f.text_right(status_right, 28.5, 12.5, true, WHITE, a, &clock);
+            let right = c.f.text_right(status_right, 27.5, 12.0, true, WHITE, a * 0.92, &clock);
             let mut left_info = match self.battery {
                 Some((charging, pct)) => {
-                    c.f.icon(Icon::Battery(pct as f32 / 100.0, charging), right - 18.0, 24.0, 15.0, WHITE, a);
-                    c.f.text_right(right - 30.0, 28.5, 11.5, false, WHITE, a * SOFT, &format!("{pct}%"))
+                    c.f.icon(Icon::Battery(pct as f32 / 100.0, charging), right - 17.0, 23.0, 14.5, WHITE, a * 0.85);
+                    c.f.text_right(right - 28.0, 27.5, 11.0, true, WHITE, a * SOFT, &format!("{pct}%"))
                 }
                 None => {
                     let day = format!("{} {}", DAYS[now.wDayOfWeek as usize % 7], now.wDay);
-                    c.f.text_right(right - 8.0, 28.5, 12.0, false, WHITE, a * SOFT, &day)
+                    c.f.text_right(right - 8.0, 27.5, 11.5, false, WHITE, a * SOFT, &day)
                 }
             };
 
@@ -505,13 +529,13 @@ impl App {
             if cam || mic {
                 let mut dot_x = left_info - 10.0;
                 if cam {
-                    c.f.circle(dot_x, 24.0, 5.0, GREEN, 0.28 * a);
-                    c.f.circle(dot_x, 24.0, 3.0, GREEN, a);
+                    c.f.circle(dot_x, 23.0, 5.0, GREEN, 0.28 * a);
+                    c.f.circle(dot_x, 23.0, 3.0, GREEN, a);
                     dot_x -= 10.0;
                 }
                 if mic {
-                    c.f.circle(dot_x, 24.0, 5.0, ORANGE, 0.28 * a);
-                    c.f.circle(dot_x, 24.0, 3.0, ORANGE, a);
+                    c.f.circle(dot_x, 23.0, 5.0, ORANGE, 0.28 * a);
+                    c.f.circle(dot_x, 23.0, 3.0, ORANGE, a);
                     dot_x -= 10.0;
                 }
                 left_info = dot_x;
@@ -521,11 +545,14 @@ impl App {
             if self.stats.1 > 0 {
                 let stats_text = format!("CPU {}% · RAM {}%", self.stats.0, self.stats.1);
                 let stats_w = c.f.width(&stats_text, 10.5, false);
-                if left_info - stats_w - 14.0 > x {
-                    c.f.text_right(left_info - 12.0, 28.5, 10.5, false, WHITE, a * SOFT * 0.72, &stats_text);
+                if left_info - stats_w - 12.0 > x {
+                    c.f.text_right(left_info - 10.0, 27.5, 10.5, false, WHITE, a * SOFT * 0.72, &stats_text);
                 }
             }
         }
+
+        // Crisp full-width header divider framing the top bar
+        c.f.fill(rrect(x0 + 18.0, 40.0, x1 - x0 - 36.0, 1.0, 0.5), WHITE, 0.055 * a);
     }
 
     fn eye_state(&self, cx: f32, r: f32) -> (f32, EyeMood) {
@@ -545,10 +572,11 @@ impl App {
     fn draw_music(&mut self, c: &mut Ctx, x0: f32, x1: f32, cx: f32) {
         let a = c.a;
         if !self.info.has_session {
-            let (look, mood) = self.eye_state(cx, 6.0);
-            c.f.expressive_eyes(cx, 88.0, 6.0, 15.0, self.blink, look, mood, a);
-            c.f.text_center(cx, 134.0, 13.0, true, WHITE, a, "Nothing playing");
-            c.f.text_center(cx, 154.0, 12.0, false, WHITE, a * SOFT, "Play something in Spotify or your browser");
+            c.card(x0 + 18.0, 46.0, x1 - x0 - 36.0, 120.0, 14.0, false);
+            let (look, mood) = self.eye_state(cx, 5.5);
+            c.f.expressive_eyes(cx, 84.0, 5.5, 14.0, self.blink, look, mood, a);
+            c.f.text_center(cx, 128.0, 13.5, true, WHITE, a, "Nothing playing");
+            c.f.text_center(cx, 147.0, 11.5, false, WHITE, a * SOFT, "Play something in Spotify or your browser");
             return;
         }
         if self.lyrics_on {
@@ -563,14 +591,20 @@ impl App {
             Some(art) => c.f.image(&art.image, x, y, size, r, c.a),
             None => c.f.art_placeholder(x, y, size, r, c.a),
         }
+        c.f.stroke(rrect(x, y, size, size, r), 1.0, WHITE, 0.10 * c.a);
     }
 
     fn controls(&self, c: &mut Ctx, xs: [f32; 4], cy: f32) {
-        c.toggle(Action::LyricsToggle, xs[0], cy, 16.0, Icon::Lyrics, 14.0, self.lyrics_on, self.accent());
-        c.button(Action::Prev, xs[1], cy, 17.0, Icon::Prev, 13.0);
+        c.toggle(Action::LyricsToggle, xs[0], cy, 15.0, Icon::Lyrics, 13.5, self.lyrics_on, self.accent());
+        c.button(Action::Prev, xs[1], cy, 16.0, Icon::Prev, 12.5);
         let play = if self.info.playing { Icon::Pause } else { Icon::Play };
-        c.button(Action::Toggle, xs[2], cy, 20.0, play, 19.0);
-        c.button(Action::Next, xs[3], cy, 17.0, Icon::Next, 13.0);
+        let a = c.a;
+        let play_hover = c.hover == Some(Action::Toggle);
+        c.f.circle(xs[2], cy, 19.0, WHITE, if play_hover { 0.18 } else { 0.10 } * a);
+        c.f.stroke(sk::PathBuilder::from_circle(xs[2], cy, 19.0), 1.0, WHITE, 0.14 * a);
+        c.f.icon(play, xs[2], cy, 17.5, WHITE, a);
+        c.hit(Action::Toggle, xs[2] - 19.0, cy - 19.0, 38.0, 38.0);
+        c.button(Action::Next, xs[3], cy, 16.0, Icon::Next, 12.5);
     }
 
     /// Clickable progress bar for seeking.
@@ -582,62 +616,88 @@ impl App {
         let a = c.a;
         let hovered = c.hover == Some(Action::SeekBar);
         let thick = if hovered { thick + 2.0 } else { thick };
-        let frac = (info.position_now() / info.duration) as f32;
-        c.f.fill(rrect(x, y - thick / 2.0, w, thick, thick / 2.0), WHITE, 0.18 * a);
+        let frac = (info.position_now() / info.duration).clamp(0.0, 1.0) as f32;
+        c.f.fill(rrect(x, y - thick / 2.0, w, thick, thick / 2.0), WHITE, 0.14 * a);
         c.f.fill(rrect(x, y - thick / 2.0, w * frac, thick, thick / 2.0), self.accent(), a);
+        if hovered {
+            c.f.circle(x + w * frac, y, thick * 1.15, WHITE, a);
+        }
         c.hit(Action::SeekBar, x, y - 8.0, w, 16.0);
     }
 
     fn draw_music_full(&mut self, c: &mut Ctx, x0: f32, x1: f32) {
         let a = c.a;
-        let (ax, ay, size) = (x0 + 24.0, 50.0, 72.0);
-        self.art(c, ax, ay, size, 14.0);
+        let accent = self.accent();
+        c.card(x0 + 18.0, 46.0, x1 - x0 - 36.0, 120.0, 14.0, false);
+
+        let (ax, ay, size) = (x0 + 30.0, 56.0, 68.0);
+        self.art(c, ax, ay, size, 12.0);
 
         let text_x = ax + size + 16.0;
-        let max_w = (x1 - 180.0) - text_x;
+        let max_w = (x1 - 188.0) - text_x;
+        let status_label = if self.info.playing { "NOW PLAYING" } else { "PAUSED" };
+        c.f.text(text_x, 69.0, 9.5, true, accent, a * 0.90, status_label);
         let title = if self.info.title.is_empty() { "Unknown title" } else { &self.info.title };
         let title = c.f.fit(title, 15.0, true, max_w);
-        c.f.text(text_x, 80.0, 15.0, true, WHITE, a, &title);
-        let artist = c.f.fit(&self.info.artist, 13.0, false, max_w);
-        c.f.text(text_x, 100.0, 13.0, false, WHITE, a * SOFT, &artist);
+        c.f.text(text_x, 89.0, 15.0, true, WHITE, a, &title);
+        let artist = if self.info.artist.is_empty() { "System Audio" } else { &self.info.artist };
+        let artist = c.f.fit(artist, 12.5, false, max_w);
+        c.f.text(text_x, 108.0, 12.5, false, WHITE, a * SOFT, &artist);
 
-        self.controls(c, [x1 - 156.0, x1 - 116.0, x1 - 78.0, x1 - 40.0], 86.0);
+        self.controls(c, [x1 - 162.0, x1 - 122.0, x1 - 82.0, x1 - 42.0], 89.0);
 
+        let (bx, bw) = (x0 + 30.0, x1 - x0 - 60.0);
         if self.info.duration > 0.0 {
-            let (bx, bw) = (x0 + 24.0, x1 - x0 - 48.0);
-            self.progress(c, bx, 144.0, bw, 4.0);
+            self.progress(c, bx, 138.0, bw, 4.0);
             let pos = self.info.position_now();
-            c.f.text(bx, 166.0, 11.0, false, WHITE, a * SOFT, &mmss(pos));
+            c.f.text(bx, 156.0, 10.5, true, WHITE, a * SOFT * 0.85, &mmss(pos));
             let rest = format!("-{}", mmss(self.info.duration - pos));
-            c.f.text_right(bx + bw, 166.0, 11.0, false, WHITE, a * SOFT, &rest);
+            c.f.text_right(bx + bw, 156.0, 10.5, true, WHITE, a * SOFT * 0.85, &rest);
+        } else {
+            c.f.fill(rrect(bx, 138.0, bw, 3.0, 1.5), WHITE, 0.10 * a);
+            c.f.text(bx, 156.0, 10.5, false, WHITE, a * SOFT * 0.75, "Live stream");
         }
     }
 
-    /// Lyrics mode: track info and controls on the left, scrolling lyrics on the right.
+    /// Lyrics mode: track card on the left, bordered lyrics card on the right.
     fn draw_music_lyrics(&mut self, c: &mut Ctx, x0: f32, x1: f32) {
         let a = c.a;
-        self.art(c, x0 + 24.0, 48.0, 56.0, 12.0);
-        let (text_x, max_w) = (x0 + 92.0, 136.0);
-        let title = if self.info.title.is_empty() { "Unknown title" } else { &self.info.title };
-        let title = c.f.fit(title, 14.0, true, max_w);
-        c.f.text(text_x, 70.0, 14.0, true, WHITE, a, &title);
-        let artist = c.f.fit(&self.info.artist, 12.0, false, max_w);
-        c.f.text(text_x, 88.0, 12.0, false, WHITE, a * SOFT, &artist);
-        self.controls(c, [x0 + 40.0, x0 + 86.0, x0 + 130.0, x0 + 174.0], 126.0);
-        self.progress(c, x0 + 24.0, 158.0, 204.0, 3.0);
+        let accent = self.accent();
+        let left_w = 216.0;
+        c.card(x0 + 18.0, 46.0, left_w, 120.0, 14.0, false);
 
-        let (col_x, col_w) = (x0 + 252.0, x1 - 24.0 - (x0 + 252.0));
-        let col_cx = col_x + col_w / 2.0;
+        self.art(c, x0 + 28.0, 56.0, 50.0, 10.0);
+        let (text_x, max_w) = (x0 + 88.0, 136.0);
+        let status_label = if self.info.playing { "NOW PLAYING" } else { "PAUSED" };
+        c.f.text(text_x, 64.0, 9.0, true, accent, a * 0.90, status_label);
+        let title = if self.info.title.is_empty() { "Unknown title" } else { &self.info.title };
+        let title = c.f.fit(title, 13.5, true, max_w);
+        c.f.text(text_x, 81.0, 13.5, true, WHITE, a, &title);
+        let artist = if self.info.artist.is_empty() { "System Audio" } else { &self.info.artist };
+        let artist = c.f.fit(artist, 11.5, false, max_w);
+        c.f.text(text_x, 97.0, 11.5, false, WHITE, a * SOFT, &artist);
+        self.controls(c, [x0 + 46.0, x0 + 90.0, x0 + 136.0, x0 + 182.0], 128.0);
+        self.progress(c, x0 + 28.0, 155.0, 196.0, 3.5);
+
+        let right_x = x0 + 242.0;
+        let right_w = x1 - 18.0 - right_x;
+        c.card(right_x, 46.0, right_w, 120.0, 14.0, false);
+
+        let (col_x, col_w) = (right_x + 14.0, right_w - 28.0);
+        let col_cx = right_x + right_w / 2.0;
         match &self.lyrics.state {
             _ if self.lyrics.key != self.info.key() => {
-                c.f.text_center(col_cx, 108.0, 13.0, false, WHITE, a * SOFT, "Finding lyrics…");
+                c.icon_badge(col_cx - 12.0, 74.0, 24.0, 7.0, Icon::Lyrics, 13.0, accent, true);
+                c.f.text_center(col_cx, 116.0, 12.5, true, WHITE, a * 0.85, "Finding lyrics…");
             }
             media::LyricsState::Loading => {
-                c.f.text_center(col_cx, 108.0, 13.0, false, WHITE, a * SOFT, "Finding lyrics…");
+                c.icon_badge(col_cx - 12.0, 74.0, 24.0, 7.0, Icon::Lyrics, 13.0, accent, true);
+                c.f.text_center(col_cx, 116.0, 12.5, true, WHITE, a * 0.85, "Finding lyrics…");
             }
             media::LyricsState::Missing => {
-                c.f.text_center(col_cx, 100.0, 13.0, true, WHITE, a * 0.8, "No synced lyrics");
-                c.f.text_center(col_cx, 119.0, 12.0, false, WHITE, a * SOFT, "for this song yet");
+                c.icon_badge(col_cx - 12.0, 68.0, 24.0, 7.0, Icon::Lyrics, 13.0, WHITE, false);
+                c.f.text_center(col_cx, 110.0, 13.0, true, WHITE, a * 0.88, "No synced lyrics");
+                c.f.text_center(col_cx, 128.0, 11.5, false, WHITE, a * SOFT, "for this song yet");
             }
             media::LyricsState::Found(lyrics) => {
                 let lyrics = lyrics.clone();
@@ -655,11 +715,11 @@ impl App {
             let mut rows = Vec::new();
             for (_, text) in &lyrics.lines {
                 let text = if text.is_empty() { "•  •  •" } else { text };
-                let wrapped = c.f.fonts.wrap(text, 14.0 * c.f.s, true, col_w * c.f.s, 2);
-                let wrapped: Vec<String> = wrapped.iter().map(|l| c.f.fit(l, 14.0, true, col_w)).collect();
+                let wrapped = c.f.fonts.wrap(text, 13.5 * c.f.s, true, col_w * c.f.s, 2);
+                let wrapped: Vec<String> = wrapped.iter().map(|l| c.f.fit(l, 13.5, true, col_w)).collect();
                 let height = wrapped.len() as f32 * LYRIC_ROW;
                 rows.push((y, wrapped));
-                y += height + 9.0;
+                y += height + 8.0;
             }
             self.lyric_layout = Some(LyricLayout { source: lyrics.clone(), rows });
         }
@@ -678,9 +738,9 @@ impl App {
         }
 
         for (i, (y, lines)) in layout.rows.iter().enumerate() {
-            let top = 74.0 + y - self.scroll.x;
+            let top = 80.0 + y - self.scroll.x;
             let bottom = top + lines.len() as f32 * LYRIC_ROW;
-            if bottom < 40.0 || top > 180.0 {
+            if bottom < 50.0 || top > 162.0 {
                 continue;
             }
             let dist = (i as f32 - focus as f32).abs();
@@ -688,12 +748,12 @@ impl App {
             if c.hover == Some(Action::SeekLine(i)) {
                 alpha = alpha.max(0.8);
             }
-            // fade out at top (near tabs) and bottom edges
+            // fade out at top and bottom card edges
             let mid = (top + bottom) / 2.0;
-            let fade = ((mid - 46.0) / 22.0).clamp(0.0, 1.0) * ((178.0 - mid) / 22.0).clamp(0.0, 1.0);
+            let fade = ((mid - 52.0) / 18.0).clamp(0.0, 1.0) * ((160.0 - mid) / 18.0).clamp(0.0, 1.0);
             for (k, row) in lines.iter().enumerate() {
                 let baseline = top + 14.0 + k as f32 * LYRIC_ROW;
-                c.f.text(col_x, baseline, 14.0, true, WHITE, a * alpha * fade, row);
+                c.f.text(col_x, baseline, 13.5, true, WHITE, a * alpha * fade, row);
             }
             if fade > 0.5 {
                 c.hit(Action::SeekLine(i), col_x - 6.0, top - 3.0, col_w + 12.0, bottom - top + 6.0);
@@ -706,89 +766,129 @@ impl App {
         let a = c.a;
         let accent = self.accent();
         let focus = &self.focus;
-        let (rx, ry, rr) = (x0 + 60.0, 94.0, 32.0);
 
-        // progress ring also acts as play/pause toggle
+        // Top timer hero card
+        c.card(x0 + 18.0, 46.0, x1 - x0 - 36.0, 82.0, 14.0, false);
+
+        let (rx, ry, rr) = (x0 + 58.0, 87.0, 27.0);
         if c.hover == Some(Action::FocusToggle) {
-            c.f.circle(rx, ry, rr - 4.0, WHITE, 0.08 * a);
+            c.f.circle(rx, ry, rr - 3.0, WHITE, 0.10 * a);
+        } else {
+            c.f.circle(rx, ry, rr - 3.0, WHITE, 0.04 * a);
         }
-        c.f.ring(rx, ry, rr, 5.0, if focus.active() { focus.progress() } else { 0.0 }, accent, a);
+        c.f.ring(rx, ry, rr, 4.5, if focus.active() { focus.progress() } else { 0.0 }, accent, a);
         let icon = if focus.running() { Icon::Pause } else { Icon::Play };
-        c.f.icon(icon, rx + if focus.running() { 0.0 } else { 2.0 }, ry, 20.0, WHITE, a);
+        c.f.icon(icon, rx + if focus.running() { 0.0 } else { 1.8 }, ry, 18.0, WHITE, a);
         c.hit(Action::FocusToggle, rx - rr, ry - rr, rr * 2.0, rr * 2.0);
 
-        let text_x = x0 + 112.0;
-        c.f.text(text_x, 102.0, 34.0, true, WHITE, a, &mmss(focus.remaining().ceil()));
+        let text_x = x0 + 102.0;
+        let eyebrow = if focus.running() {
+            "FOCUS SESSION ACTIVE"
+        } else if focus.active() {
+            "SESSION PAUSED"
+        } else {
+            "POMODORO TIMER"
+        };
+        c.f.text(text_x, 66.0, 9.5, true, accent, a * 0.90, eyebrow);
+        c.f.text(text_x, 96.0, 30.0, true, WHITE, a, &mmss(focus.remaining().ceil()));
         let status = if focus.running() {
-            // completion time, calculated from current time + remaining duration
             let now = unsafe { GetLocalTime() };
             let end = (now.wHour as u32 * 60 + now.wMinute as u32 + (focus.remaining() / 60.0).ceil() as u32) % 1440;
-            format!("Focusing · ends {:02}:{:02}", end / 60, end % 60)
+            format!("Ends at {:02}:{:02} · click ring to pause", end / 60, end % 60)
         } else if focus.active() {
-            "Paused".to_string()
+            "Click ring to resume or reset on the right".to_string()
         } else {
-            "Ready when you are".to_string()
+            "Tap ring to start a focus session".to_string()
         };
-        c.f.text(text_x, 124.0, 12.0, false, WHITE, a * SOFT, &status);
+        c.f.text(text_x, 114.0, 11.5, false, WHITE, a * SOFT, &status);
 
         if focus.active() {
-            c.button(Action::FocusReset, x1 - 44.0, ry, 17.0, Icon::Reset, 16.0);
+            c.button(Action::FocusReset, x1 - 46.0, ry, 16.0, Icon::Reset, 15.0);
         }
 
-        // duration presets; cannot be changed while running
+        // Bottom preset card row
         let running = focus.running();
         let minutes = focus.minutes;
-        let mut x = x0 + 24.0;
-        for m in PRESETS {
+        let total_w = x1 - x0 - 36.0;
+        let gap = 8.0;
+        let card_w = (total_w - gap * (PRESETS.len() as f32 - 1.0)) / PRESETS.len() as f32;
+        for (idx, m) in PRESETS.iter().copied().enumerate() {
+            let px = x0 + 18.0 + idx as f32 * (card_w + gap);
+            let py = 134.0;
+            let ph = 30.0;
+            let selected = minutes == m;
+            let hovered = c.hover == Some(Action::Preset(m)) && !running;
+            if selected {
+                c.f.fill(rrect(px, py, card_w, ph, 9.0), accent, 0.18 * a);
+                c.f.stroke(rrect(px, py, card_w, ph, 9.0), 1.0, accent, 0.45 * a);
+            } else {
+                c.card(px, py, card_w, ph, 9.0, hovered);
+            }
+            let txt_a = if selected {
+                1.0
+            } else if running {
+                0.35
+            } else if hovered {
+                0.92
+            } else {
+                0.70
+            };
             let label = format!("{m} min");
-            x += c.pill(Action::Preset(m), x, 144.0, &label, None, minutes == m, running) + 6.0;
+            c.f.text_center(px + card_w / 2.0, py + 19.5, 12.0, true, if selected { accent } else { WHITE }, a * txt_a, &label);
+            if !running {
+                c.hit(Action::Preset(m), px, py, card_w, ph);
+            }
         }
     }
 
     fn draw_shelf(&mut self, c: &mut Ctx, x0: f32, x1: f32, cx: f32) {
         let a = c.a;
+        let accent = self.accent();
         if self.shelf.is_empty() || self.drag_in {
             let active = self.drag_in;
-            let zone = rrect(x0 + 24.0, 48.0, x1 - x0 - 48.0, 112.0, 18.0);
-            let accent = self.accent();
+            let (zx, zy, zw, zh) = (x0 + 18.0, 46.0, x1 - x0 - 36.0, 118.0);
+            let zone = rrect(zx, zy, zw, zh, 14.0);
 
             if active {
-                // ripples live outside the notch (see render); inside, the tray icon bobs gently
+                c.f.fill(zone.clone(), accent, 0.08 * a);
+                c.f.dashed(zone, 1.4, accent, 0.55 * a);
                 let bob = (self.started.elapsed().as_secs_f32() * 9.0).sin() * 1.5;
-                c.f.icon(Icon::Tray, cx, 84.0 + bob, 26.0, accent, a);
-                c.f.text_center(cx, 124.0, 13.5, true, WHITE, a, "Release to add to Shelf");
-                c.f.text_center(cx, 143.0, 11.0, false, accent, 0.85 * a, "Drop anywhere to store");
+                c.icon_badge(cx - 16.0, 62.0 + bob, 32.0, 9.0, Icon::Tray, 18.0, accent, true);
+                c.f.text_center(cx, 118.0, 13.5, true, WHITE, a, "Release to add to Shelf");
+                c.f.text_center(cx, 137.0, 11.5, false, accent, 0.90 * a, "Drop anywhere to pin files for quick drag-out");
             } else {
-                c.f.fill(zone.clone(), WHITE, 0.04 * a);
-                c.f.dashed(zone, 1.4, WHITE, 0.28 * a);
-                c.f.icon(Icon::Tray, cx, 84.0, 24.0, WHITE, 0.8 * a);
-                c.f.text_center(cx, 124.0, 13.0, true, WHITE, a, "Drop files here");
-                c.f.text_center(cx, 143.0, 11.0, false, WHITE, a * SOFT, "Files stay where they are. Drag them out anytime.");
+                c.card(zx, zy, zw, zh, 14.0, false);
+                c.f.dashed(rrect(zx + 6.0, zy + 6.0, zw - 12.0, zh - 12.0, 10.0), 1.2, WHITE, 0.16 * a);
+                c.icon_badge(cx - 16.0, 62.0, 32.0, 9.0, Icon::Tray, 17.0, WHITE, false);
+                c.f.text_center(cx, 118.0, 13.5, true, WHITE, a, "Drop files here");
+                c.f.text_center(cx, 137.0, 11.5, false, WHITE, a * SOFT, "Files stay where they are · drag them out anytime");
             }
             return;
         }
 
-        let (tile_w, tile_h, gap, y) = (76.0, 92.0, 8.0, 46.0);
+        let total_w = x1 - x0 - 36.0;
+        let gap = 8.0;
+        let tile_w = (total_w - gap * (SHELF_VISIBLE as f32 - 1.0)) / SHELF_VISIBLE as f32;
+        let (tile_h, y) = (88.0, 46.0);
         let len = self.shelf.len();
         for (slot, i) in (self.shelf_scroll..len).take(SHELF_VISIBLE).enumerate() {
-            let tx = x0 + 24.0 + slot as f32 * (tile_w + gap);
+            let tx = x0 + 18.0 + slot as f32 * (tile_w + gap);
             let hovered = matches!(c.hover, Some(Action::ShelfItem(j) | Action::ShelfRemove(j)) if j == i);
-            if hovered {
-                c.f.fill(rrect(tx, y, tile_w, tile_h, 14.0), WHITE, 0.08 * a);
-            }
+            c.card(tx, y, tile_w, tile_h, 12.0, hovered);
+
             let item = &self.shelf[i];
             match &item.thumb {
-                Some(img) => c.f.image_fit(img, tx + tile_w / 2.0, y + 34.0, 48.0, 6.0, a),
-                None => c.f.icon(Icon::Note, tx + tile_w / 2.0, y + 34.0, 30.0, WHITE, a * SOFT),
+                Some(img) => c.f.image_fit(img, tx + tile_w / 2.0, y + 33.0, 44.0, 6.0, a),
+                None => c.icon_badge(tx + tile_w / 2.0 - 16.0, y + 17.0, 32.0, 9.0, Icon::Note, 17.0, accent, true),
             }
-            let name = c.f.fit(&item.name, 11.0, false, tile_w - 10.0);
-            c.f.text_center(tx + tile_w / 2.0, y + 78.0, 11.0, false, WHITE, a * 0.85, &name);
+            let name = c.f.fit(&item.name, 11.0, true, tile_w - 12.0);
+            c.f.text_center(tx + tile_w / 2.0, y + 75.0, 11.0, true, WHITE, a * 0.90, &name);
 
             let (bx, by) = (tx + tile_w - 11.0, y + 11.0);
             if hovered {
                 let over = c.hover == Some(Action::ShelfRemove(i));
-                c.f.circle(bx, by, 9.0, if over { [90, 90, 96] } else { [62, 62, 68] }, a);
-                c.f.icon(Icon::Close, bx, by, 8.0, WHITE, a);
+                c.f.circle(bx, by, 8.5, if over { [96, 96, 104] } else { [54, 54, 62] }, a);
+                c.f.icon(Icon::Close, bx, by, 7.5, WHITE, a);
             }
             c.hit(Action::ShelfRemove(i), bx - 9.0, by - 9.0, 18.0, 18.0);
             c.hit(Action::ShelfItem(i), tx, y, tile_w, tile_h);
@@ -798,15 +898,20 @@ impl App {
             let first = self.shelf_scroll + 1;
             format!("{first}–{} of {len} · scroll for more", (first + SHELF_VISIBLE - 1).min(len))
         } else {
-            "Drag out anytime · click to open".to_string()
+            format!("{len} {} · drag out or click to open", if len == 1 { "item" } else { "items" })
         };
-        c.f.text(x0 + 26.0, 162.0, 11.0, false, WHITE, a * SOFT, &hint);
-        let clear_w = c.f.width("Clear", 12.0, true) + 24.0;
-        c.pill(Action::ShelfClear, x1 - 24.0 - clear_w, 145.0, "Clear", None, false, false);
+        c.f.text(x0 + 22.0, 156.0, 11.0, false, WHITE, a * SOFT, &hint);
+        let clear_w = c.f.width("Clear all", 11.0, true) + 20.0;
+        let clear_x = x1 - 18.0 - clear_w;
+        let clear_hover = c.hover == Some(Action::ShelfClear);
+        c.card(clear_x, 140.0, clear_w, 24.0, 8.0, clear_hover);
+        c.f.text_center(clear_x + clear_w / 2.0, 156.0, 11.0, true, WHITE, a * if clear_hover { 0.95 } else { 0.72 }, "Clear all");
+        c.hit(Action::ShelfClear, clear_x, 140.0, clear_w, 24.0);
     }
 
-    fn draw_tasks(&mut self, c: &mut Ctx, x0: f32, x1: f32, cx: f32) {
+    fn draw_tasks(&mut self, c: &mut Ctx, x0: f32, x1: f32, _cx: f32) {
         let a = c.a;
+        let accent = self.accent();
         // pending tasks on top (nearest due time first), completed tasks at the bottom
         let mut order: Vec<usize> = (0..self.tasks.len()).collect();
         order.sort_by(|&i, &j| {
@@ -816,81 +921,99 @@ impl App {
                 .then(ti.due.unwrap_or(f64::MAX).total_cmp(&tj.due.unwrap_or(f64::MAX)))
         });
 
+        let row_x = x0 + 18.0;
+        let row_w = x1 - x0 - 36.0;
+
         if self.tasks.is_empty() {
-            c.f.text_center(cx, 68.0, 14.0, true, WHITE, a, "Nothing to do");
-            c.f.text_center(cx, 89.0, 12.0, false, WHITE, a * SOFT, "End a task with a time, like 15:30, to get a reminder.");
+            c.card(row_x, 46.0, row_w, 76.0, 12.0, false);
+            c.icon_badge(row_x + 16.0, 68.0, 32.0, 9.0, Icon::Tasks, 16.0, accent, true);
+            c.f.text(row_x + 60.0, 80.0, 13.5, true, WHITE, a, "No pending tasks");
+            c.f.text(
+                row_x + 60.0,
+                99.0,
+                11.5,
+                false,
+                WHITE,
+                a * SOFT,
+                "End a task with a time like 15:30 to get a live reminder.",
+            );
         }
 
         for (slot, &i) in order.iter().skip(self.task_scroll).take(TASKS_VISIBLE).enumerate() {
             let task = &self.tasks[i];
-            let y = 42.0 + slot as f32 * 26.0;
+            let y = 45.0 + slot as f32 * 28.0;
+            let h = 25.0;
             let hovered = matches!(c.hover, Some(Action::TaskToggle(j) | Action::TaskRemove(j)) if j == i);
-            if hovered {
-                c.f.fill(rrect(x0 + 16.0, y, x1 - x0 - 32.0, 26.0, 9.0), WHITE, 0.06 * a);
-            }
-            let (bx, by) = (x0 + 34.0, y + 13.0);
+            c.card(row_x, y, row_w, h, 8.0, hovered);
+
+            // Left rounded-square checkbox badge (Notchio card style)
+            let (bx, by) = (row_x + 15.0, y + h / 2.0);
             if task.done {
-                c.f.circle(bx, by, 8.0, GREEN, a);
-                c.f.icon(Icon::Check, bx, by, 9.0, BLACK, a);
+                c.f.fill(rrect(bx - 8.0, by - 8.0, 16.0, 16.0, 5.0), GREEN, 0.22 * a);
+                c.f.stroke(rrect(bx - 8.0, by - 8.0, 16.0, 16.0, 5.0), 1.0, GREEN, 0.65 * a);
+                c.f.icon(Icon::Check, bx, by, 9.0, GREEN, a);
             } else {
-                c.f.stroke(sk::PathBuilder::from_circle(bx, by, 7.5), 1.4, WHITE, 0.5 * a);
+                c.f.fill(rrect(bx - 8.0, by - 8.0, 16.0, 16.0, 5.0), WHITE, 0.05 * a);
+                c.f.stroke(rrect(bx - 8.0, by - 8.0, 16.0, 16.0, 5.0), 1.2, WHITE, 0.28 * a);
             }
 
-            let text = c.f.fit(&task.text, 13.0, false, (x1 - 96.0) - (x0 + 52.0));
-            let ta = if task.done { a * SOFT * 0.8 } else { a };
-            c.f.text(x0 + 52.0, y + 18.0, 13.0, false, WHITE, ta, &text);
+            let text_x = row_x + 32.0;
+            let text = c.f.fit(&task.text, 12.5, !task.done, (x1 - 92.0) - text_x);
+            let ta = if task.done { a * SOFT * 0.75 } else { a * 0.95 };
+            c.f.text(text_x, y + 17.0, 12.5, !task.done, WHITE, ta, &text);
             if task.done {
-                let tw = c.f.width(&text, 13.0, false);
-                c.f.fill(rrect(x0 + 52.0, y + 13.0, tw, 1.2, 0.6), WHITE, ta);
+                let tw = c.f.width(&text, 12.5, false);
+                c.f.fill(rrect(text_x, y + 12.5, tw, 1.2, 0.6), WHITE, ta);
             }
 
             if hovered {
-                c.button(Action::TaskRemove(i), x1 - 36.0, by, 10.0, Icon::Close, 8.0);
+                c.button(Action::TaskRemove(i), x1 - 32.0, by, 9.5, Icon::Close, 7.5);
             } else if !task.label.is_empty() {
-                let (rgb, la) = if task.overdue() { (ORANGE, a) } else { (WHITE, a * SOFT) };
-                c.f.text_right(x1 - 28.0, y + 18.0, 12.0, false, rgb, la, &task.label);
+                let (rgb, la) = if task.overdue() { (ORANGE, a) } else { (accent, a * 0.90) };
+                let lw = c.f.width(&task.label, 10.5, true) + 12.0;
+                let lx = x1 - 26.0 - lw;
+                c.f.fill(rrect(lx, y + 4.0, lw, 17.0, 5.0), rgb, 0.14 * a);
+                c.f.text_center(lx + lw / 2.0, y + 16.0, 10.5, true, rgb, la, &task.label);
             }
-            c.hit(Action::TaskRemove(i), x1 - 46.0, y, 20.0, 26.0);
-            c.hit(Action::TaskToggle(i), x0 + 16.0, y, x1 - x0 - 66.0, 26.0);
+            c.hit(Action::TaskRemove(i), x1 - 44.0, y, 22.0, h);
+            c.hit(Action::TaskToggle(i), row_x, y, row_w - 28.0, h);
         }
 
-        // add task input bar comfortably above bottom curve
-        let (fx, fy, fw) = (x0 + 32.0, 124.0, x1 - x0 - 64.0);
-        let bg = if self.editing {
-            0.14
-        } else if c.hover == Some(Action::TaskInput) {
-            0.10
-        } else {
-            0.06
-        };
-        c.f.fill(rrect(fx, fy, fw, 26.0, 13.0), WHITE, bg * a);
-        let accent = self.accent();
+        // Structured card input bar for adding a task
+        let (fx, fy, fw, fh) = (row_x, 132.0, row_w, 28.0);
+        let input_hover = c.hover == Some(Action::TaskInput);
+        c.card(fx, fy, fw, fh, 9.0, self.editing || input_hover);
         if self.editing {
-            c.f.stroke(rrect(fx, fy, fw, 26.0, 13.0), 1.0, accent, 0.55 * a);
+            c.f.stroke(rrect(fx, fy, fw, fh, 9.0), 1.0, accent, 0.55 * a);
         }
-        // once the draft ends with a time it becomes a reminder: the + turns into a bell that pops in
+
+        // Left rounded-square icon badge inside input bar (+ or ringing bell)
         let parsed = tasks::Task::parse(&self.draft);
+        let badge_x = fx + 5.0;
+        let badge_y = fy + 4.0;
         match self.draft_time_since.filter(|_| parsed.as_ref().is_some_and(|t| t.due.is_some())) {
             Some(since) => {
                 let x = (since.elapsed().as_secs_f32() / 0.3).min(1.0) - 1.0;
-                let pop = 1.0 + 2.7 * x * x * x + 1.7 * x * x; // ease-out-back
-                c.f.bell(fx + 14.0, fy + 13.0, 13.0 * pop, 0.0, accent, a);
+                let pop = 1.0 + 2.7 * x * x * x + 1.7 * x * x;
+                c.f.fill(rrect(badge_x, badge_y, 20.0, 20.0, 6.0), accent, 0.18 * a);
+                c.f.bell(badge_x + 10.0, badge_y + 10.0, 12.0 * pop, 0.0, accent, a);
             }
-            None => c.f.icon(Icon::Plus, fx + 14.0, fy + 13.0, 10.0, WHITE, a * SOFT),
+            None => {
+                c.f.fill(rrect(badge_x, badge_y, 20.0, 20.0, 6.0), WHITE, 0.06 * a);
+                c.f.icon(Icon::Plus, badge_x + 10.0, badge_y + 10.0, 9.5, WHITE, a * 0.75);
+            }
         }
         let submit = self.editing && parsed.is_some();
-        let text_x = fx + 28.0;
-        let max_w = fw - 44.0 - if submit { 20.0 } else { 0.0 };
+        let text_x = fx + 32.0;
+        let max_w = fw - 48.0 - if submit { 22.0 } else { 0.0 };
         if self.draft.is_empty() {
-            let hint = if self.editing { "Type and press Enter" } else { "Add a task… try “Stand-up 09:30”" };
-            c.f.text(text_x, fy + 17.5, 12.0, false, WHITE, a * SOFT * 0.85, hint);
+            let hint = if self.editing { "Type a task and press Enter…" } else { "Add a task… try “Stand-up 09:30”" };
+            c.f.text(text_x, fy + 18.5, 12.0, false, WHITE, a * SOFT * 0.85, hint);
         } else {
-            // long text: show trailing portion where user is typing
             let mut shown: String = self.draft.clone();
             while c.f.width(&shown, 12.0, false) > max_w && !shown.is_empty() {
                 shown.remove(0);
             }
-            // the recognised time is tinted with the accent
             let trimmed = self.draft.trim_end();
             let time_at = match &parsed {
                 Some(t) if t.due.is_some() => trimmed.rfind(char::is_whitespace).map_or(0, |i| i + 1),
@@ -898,13 +1021,12 @@ impl App {
             };
             let split = time_at.saturating_sub(self.draft.len() - shown.len());
             let (head, time) = shown.split_at(split);
-            c.f.text(text_x, fy + 17.5, 12.0, false, WHITE, a, head);
+            c.f.text(text_x, fy + 18.5, 12.0, false, WHITE, a, head);
             let head_w = c.f.width(head, 12.0, false);
-            c.f.text(text_x + head_w, fy + 17.5, 12.0, false, accent, a, time);
+            c.f.text(text_x + head_w, fy + 18.5, 12.0, true, accent, a, time);
         }
         if submit {
-            // return button, same as pressing Enter
-            let (bx, by) = (fx + fw - 15.0, fy + 13.0);
+            let (bx, by) = (fx + fw - 15.0, fy + 14.0);
             c.f.circle(bx, by, 9.0, accent, a);
             let mut pb = sk::PathBuilder::new();
             pb.move_to(bx + 3.2, by - 3.4);
@@ -914,26 +1036,31 @@ impl App {
             pb.line_to(bx - 3.5, by + 1.2);
             pb.line_to(bx - 1.2, by + 3.5);
             c.f.stroke(pb.finish(), 1.5, BLACK, 0.85 * a);
-            c.hit(Action::TaskSubmit, bx - 11.0, fy, 22.0, 26.0);
+            c.hit(Action::TaskSubmit, bx - 11.0, fy, 22.0, fh);
         }
         if self.editing && self.caret {
             let shown_w = c.f.width(&self.draft, 12.0, false).min(max_w);
             let cx = if self.draft.is_empty() { text_x } else { text_x + shown_w + 1.0 };
-            c.f.fill(rrect(cx, fy + 6.0, 1.5, 14.0, 0.75), WHITE, a);
+            c.f.fill(rrect(cx, fy + 7.0, 1.5, 14.0, 0.75), accent, a);
         }
-        c.hit(Action::TaskInput, fx, fy, fw, 26.0);
+        c.hit(Action::TaskInput, fx, fy, fw, fh);
     }
 
-    fn draw_clipboard(&mut self, c: &mut Ctx, x0: f32, x1: f32, cx: f32) {
+    fn draw_clipboard(&mut self, c: &mut Ctx, x0: f32, x1: f32, _cx: f32) {
         let a = c.a;
         let accent = self.accent();
         let len = self.clips.len();
+        let row_x = x0 + 18.0;
+        let row_w = x1 - x0 - 36.0;
+
         if len == 0 {
-            c.f.text_center(cx, 78.0, 14.0, true, WHITE, a, "Clipboard is empty");
-            c.f.text_center(
-                cx,
-                100.0,
-                12.0,
+            c.card(row_x, 46.0, row_w, 114.0, 14.0, false);
+            c.icon_badge(row_x + 18.0, 85.0, 36.0, 10.0, Icon::Clipboard, 18.0, accent, true);
+            c.f.text(row_x + 68.0, 99.0, 14.0, true, WHITE, a, "Clipboard is empty");
+            c.f.text(
+                row_x + 68.0,
+                119.0,
+                11.5,
                 false,
                 WHITE,
                 a * SOFT,
@@ -944,11 +1071,10 @@ impl App {
 
         for (slot, i) in (self.clip_scroll..len).take(CLIPS_VISIBLE).enumerate() {
             let entry = &self.clips[i];
-            let y = 44.0 + slot as f32 * 30.0;
+            let y = 45.0 + slot as f32 * 29.0;
+            let h = 26.0;
             let hovered = matches!(c.hover, Some(Action::ClipCopy(j) | Action::ClipRemove(j)) if j == i);
-            if hovered {
-                c.f.fill(rrect(x0 + 18.0, y, x1 - x0 - 36.0, 26.0, 9.0), WHITE, 0.08 * a);
-            }
+            c.card(row_x, y, row_w, h, 8.0, hovered);
 
             let trimmed = entry.trim();
             let (kind, badge_rgb) = if trimmed.starts_with("https://") || trimmed.starts_with("http://") {
@@ -963,48 +1089,61 @@ impl App {
                 ("TXT", WHITE)
             };
 
-            let bx = x0 + 26.0;
-            c.f.fill(rrect(bx, y + 4.0, 34.0, 18.0, 5.0), badge_rgb, 0.16 * a);
-            c.f.text_center(bx + 17.0, y + 16.5, 9.5, true, badge_rgb, 0.95 * a, kind);
+            let bx = row_x + 5.0;
+            c.f.fill(rrect(bx, y + 4.0, 34.0, 18.0, 5.0), badge_rgb, 0.14 * a);
+            c.f.stroke(rrect(bx, y + 4.0, 34.0, 18.0, 5.0), 1.0, badge_rgb, 0.26 * a);
+            c.f.text_center(bx + 17.0, y + 16.5, 9.0, true, badge_rgb, 0.95 * a, kind);
 
             let single_line: String = entry.split_whitespace().collect::<Vec<_>>().join(" ");
-            let preview = c.f.fit(&single_line, 12.5, false, (x1 - 76.0) - (bx + 42.0));
-            c.f.text(bx + 42.0, y + 17.5, 12.5, false, WHITE, a * 0.92, &preview);
+            let preview = c.f.fit(&single_line, 12.0, true, (x1 - 80.0) - (bx + 42.0));
+            c.f.text(bx + 42.0, y + 17.5, 12.0, true, WHITE, a * 0.94, &preview);
 
             let copied_recently = self
                 .clip_copied
                 .is_some_and(|(idx, t)| idx == i && t.elapsed().as_secs_f32() < 1.4);
             if copied_recently {
-                c.f.text_right(x1 - 28.0, y + 17.5, 11.0, true, GREEN, a, "Copied");
+                let lw = 48.0;
+                let lx = x1 - 26.0 - lw;
+                c.f.fill(rrect(lx, y + 4.0, lw, 18.0, 5.0), GREEN, 0.18 * a);
+                c.f.text_center(lx + lw / 2.0, y + 16.5, 10.0, true, GREEN, a, "Copied");
             } else if hovered {
-                c.button(Action::ClipRemove(i), x1 - 36.0, y + 13.0, 10.0, Icon::Close, 8.0);
+                c.button(Action::ClipRemove(i), x1 - 32.0, y + h / 2.0, 9.5, Icon::Close, 7.5);
             } else {
                 let meta = format!("{}c", entry.chars().count());
-                c.f.text_right(x1 - 28.0, y + 17.5, 11.0, false, WHITE, a * SOFT * 0.75, &meta);
+                c.f.text_right(x1 - 28.0, y + 17.5, 10.5, true, WHITE, a * SOFT * 0.78, &meta);
             }
-            c.hit(Action::ClipRemove(i), x1 - 46.0, y, 20.0, 26.0);
-            c.hit(Action::ClipCopy(i), x0 + 18.0, y, x1 - x0 - 66.0, 26.0);
+            c.hit(Action::ClipRemove(i), x1 - 44.0, y, 22.0, h);
+            c.hit(Action::ClipCopy(i), row_x, y, row_w - 28.0, h);
         }
 
         let hint = if len > CLIPS_VISIBLE {
             let first = self.clip_scroll + 1;
             format!("{first}–{} of {len} · scroll for more", (first + CLIPS_VISIBLE - 1).min(len))
         } else {
-            "In-memory only · click to copy".to_string()
+            format!("{len} {} in memory · click to copy", if len == 1 { "clip" } else { "clips" })
         };
-        c.f.text(x0 + 26.0, 162.0, 11.0, false, WHITE, a * SOFT, &hint);
-        let clear_w = c.f.width("Clear", 12.0, true) + 24.0;
-        c.pill(Action::ClipClear, x1 - 24.0 - clear_w, 145.0, "Clear", None, false, false);
+        c.f.text(x0 + 22.0, 156.0, 11.0, false, WHITE, a * SOFT, &hint);
+        let clear_w = c.f.width("Clear all", 11.0, true) + 20.0;
+        let clear_x = x1 - 18.0 - clear_w;
+        let clear_hover = c.hover == Some(Action::ClipClear);
+        c.card(clear_x, 140.0, clear_w, 24.0, 8.0, clear_hover);
+        c.f.text_center(clear_x + clear_w / 2.0, 156.0, 11.0, true, WHITE, a * if clear_hover { 0.95 } else { 0.72 }, "Clear all");
+        c.hit(Action::ClipClear, clear_x, 140.0, clear_w, 24.0);
     }
 
     fn draw_settings(&mut self, c: &mut Ctx, x0: f32, x1: f32, _cx: f32) {
         let a = c.a;
         let accent = self.accent();
-        let left = x0 + 26.0;
-        let align_x = left + 68.0;
+        let card_x = x0 + 18.0;
+        let card_w = x1 - x0 - 36.0;
+        let card_h = 34.0;
+        let align_x = card_x + 100.0;
 
-        // Row 1 (y = 50..74): ACCENT (swatches) & config.toml link (right)
-        c.f.text(left, 65.0, 10.5, true, WHITE, 0.45 * a, "ACCENT");
+        // Row 1 Card (y = 45..79): Appearance (Accent swatches + Reset / config.toml)
+        let r1_y = 45.0;
+        c.card(card_x, r1_y, card_w, card_h, 10.0, false);
+        c.icon_badge(card_x + 7.0, r1_y + 6.0, 22.0, 6.0, Icon::Note, 11.5, accent, true);
+        c.f.text(card_x + 35.0, r1_y + 21.5, 11.5, true, WHITE, 0.92 * a, "Theme");
 
         let accents: [(&str, [u8; 3]); 6] = [
             ("Auto", [180, 180, 190]),
@@ -1016,7 +1155,7 @@ impl App {
         ];
 
         let mut sx = align_x;
-        let sy = 52.0;
+        let sy = r1_y + 7.0;
         let is_auto = self.config.theme.accent_mode.eq_ignore_ascii_case("album_art");
         for (i, (name, color)) in accents.iter().enumerate() {
             let is_sel = if i == 0 {
@@ -1031,44 +1170,50 @@ impl App {
                 })
             };
 
-            let sw_w = if i == 0 { 42.0 } else { 20.0 };
+            let sw_w = if i == 0 { 40.0 } else { 18.0 };
             let sw_h = 20.0;
 
             if is_sel {
-                c.f.fill(rrect(sx - 2.5, sy - 2.5, sw_w + 5.0, sw_h + 5.0, 7.0), WHITE, 0.9 * a);
+                c.f.fill(rrect(sx - 2.0, sy - 2.0, sw_w + 4.0, sw_h + 4.0, 6.5), WHITE, 0.90 * a);
             }
             if i == 0 {
-                let bg = if is_sel { 0.9 } else { 0.16 };
+                let bg = if is_sel { 0.92 } else { 0.14 };
                 let txt_color = if is_sel { BLACK } else { WHITE };
-                c.f.fill(rrect(sx, sy, sw_w, sw_h, 4.5), WHITE, bg * a);
-                c.f.text_center(sx + sw_w / 2.0, sy + 14.0, 10.5, true, txt_color, a, name);
+                c.f.fill(rrect(sx, sy, sw_w, sw_h, 5.0), WHITE, bg * a);
+                c.f.text_center(sx + sw_w / 2.0, sy + 14.0, 10.0, true, txt_color, a, name);
             } else {
-                c.f.fill(rrect(sx, sy, sw_w, sw_h, 4.5), *color, a);
+                c.f.fill(rrect(sx, sy, sw_w, sw_h, 5.0), *color, a);
             }
 
             c.hit(Action::SettingsAccent(i), sx, sy, sw_w, sw_h);
-            sx += sw_w + 8.0;
+            sx += sw_w + 7.0;
         }
 
-        // Clean links on the right side of Row 1: Reset to default & config.toml
+        // Right-aligned utility pills inside Row 1: Reset & config.toml
         let cfg_label = "config.toml";
-        let cfg_w = c.f.width(cfg_label, 11.0, true) + 20.0;
-        let cfg_x = x1 - 26.0 - cfg_w;
+        let cfg_w = c.f.width(cfg_label, 10.5, true) + 16.0;
+        let cfg_x = card_x + card_w - 7.0 - cfg_w;
         let cfg_hover = c.hover == Some(Action::SettingsOpenConfig);
-        c.f.fill(rrect(cfg_x, 50.0, cfg_w, 24.0, 12.0), WHITE, if cfg_hover { 0.12 } else { 0.05 } * a);
-        c.f.text(cfg_x + 10.0, 66.0, 11.0, true, WHITE, if cfg_hover { 0.95 } else { 0.50 } * a, cfg_label);
-        c.hit(Action::SettingsOpenConfig, cfg_x, 50.0, cfg_w, 24.0);
+        c.f.fill(rrect(cfg_x, r1_y + 6.0, cfg_w, 22.0, 6.0), WHITE, if cfg_hover { 0.12 } else { 0.05 } * a);
+        c.f.stroke(rrect(cfg_x, r1_y + 6.0, cfg_w, 22.0, 6.0), 1.0, WHITE, 0.08 * a);
+        c.f.text_center(cfg_x + cfg_w / 2.0, r1_y + 20.5, 10.5, true, WHITE, if cfg_hover { 0.95 } else { 0.68 } * a, cfg_label);
+        c.hit(Action::SettingsOpenConfig, cfg_x, r1_y + 6.0, cfg_w, 22.0);
 
         let rst_label = "Reset";
-        let rst_w = c.f.width(rst_label, 11.0, true) + 20.0;
-        let rst_x = cfg_x - 8.0 - rst_w;
+        let rst_w = c.f.width(rst_label, 10.5, true) + 16.0;
+        let rst_x = cfg_x - 6.0 - rst_w;
         let rst_hover = c.hover == Some(Action::SettingsResetDefaults);
-        c.f.fill(rrect(rst_x, 50.0, rst_w, 24.0, 12.0), WHITE, if rst_hover { 0.12 } else { 0.05 } * a);
-        c.f.text(rst_x + 10.0, 66.0, 11.0, true, WHITE, if rst_hover { 0.95 } else { 0.50 } * a, rst_label);
-        c.hit(Action::SettingsResetDefaults, rst_x, 50.0, rst_w, 24.0);
+        c.f.fill(rrect(rst_x, r1_y + 6.0, rst_w, 22.0, 6.0), WHITE, if rst_hover { 0.12 } else { 0.05 } * a);
+        c.f.stroke(rrect(rst_x, r1_y + 6.0, rst_w, 22.0, 6.0), 1.0, WHITE, 0.08 * a);
+        c.f.text_center(rst_x + rst_w / 2.0, r1_y + 20.5, 10.5, true, WHITE, if rst_hover { 0.95 } else { 0.68 } * a, rst_label);
+        c.hit(Action::SettingsResetDefaults, rst_x, r1_y + 6.0, rst_w, 22.0);
 
-        // Row 2 (y = 82..106): MODULES (TABS)
-        c.f.text(left, 97.0, 10.5, true, WHITE, 0.45 * a, "TABS");
+        // Row 2 Card (y = 83..117): Modules (Tabs)
+        let r2_y = 83.0;
+        c.card(card_x, r2_y, card_w, card_h, 10.0, false);
+        c.icon_badge(card_x + 7.0, r2_y + 6.0, 22.0, 6.0, Icon::Tray, 11.5, WHITE, false);
+        c.f.text(card_x + 35.0, r2_y + 21.5, 11.5, true, WHITE, 0.92 * a, "Modules");
+
         let tabs = [
             ("Music", self.config.tabs.media),
             ("Focus", self.config.tabs.focus),
@@ -1078,22 +1223,26 @@ impl App {
         ];
         let mut tx = align_x;
         for (idx, (t_name, on)) in tabs.iter().enumerate() {
-            let pw = c.chip(Action::SettingsToggleTab(idx), tx, 82.0, t_name, *on, accent);
-            tx += pw + 8.0;
+            let pw = c.chip(Action::SettingsToggleTab(idx), tx, r2_y + 6.0, t_name, *on, accent);
+            tx += pw + 6.0;
         }
 
-        // Row 3 (y = 114..138): BEHAVIOR & SYSTEM
-        c.f.text(left, 129.0, 10.5, true, WHITE, 0.45 * a, "SYSTEM");
+        // Row 3 Card (y = 121..155): Behavior & System
+        let r3_y = 121.0;
+        c.card(card_x, r3_y, card_w, card_h, 10.0, false);
+        c.icon_badge(card_x + 7.0, r3_y + 6.0, 22.0, 6.0, Icon::Gear, 11.5, WHITE, false);
+        c.f.text(card_x + 35.0, r3_y + 21.5, 11.5, true, WHITE, 0.92 * a, "Behavior");
+
         let behaviors = [
             (Action::SettingsToggleSound, "Sound", self.config.behavior.sound_effects),
             (Action::SettingsToggleHover, "Hover Open", self.config.behavior.hover_to_open),
-            (Action::SettingsToggleFullscreen, "Fullscreen Hide", self.config.behavior.auto_hide_fullscreen),
+            (Action::SettingsToggleFullscreen, "Auto-Hide", self.config.behavior.auto_hide_fullscreen),
             (Action::SettingsToggleAutostart, "Autostart", system::autostart()),
         ];
         let mut bx = align_x;
         for (action, label, on) in behaviors {
-            let pw = c.chip(action, bx, 114.0, label, on, accent);
-            bx += pw + 8.0;
+            let pw = c.chip(action, bx, r3_y + 6.0, label, on, accent);
+            bx += pw + 6.0;
         }
     }
 }
@@ -1113,12 +1262,47 @@ impl Ctx<'_, '_> {
         }
     }
 
+    /// Matte obsidian card container with a crisp 1dp border.
+    fn card(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, hovered: bool) {
+        let a = self.a;
+        let fill_a = if hovered { 0.075 } else { 0.042 };
+        let stroke_a = if hovered { 0.14 } else { 0.075 };
+        self.f.fill(rrect(x, y, w, h, r), WHITE, fill_a * a);
+        self.f.stroke(rrect(x, y, w, h, r), 1.0, WHITE, stroke_a * a);
+    }
+
+    /// Rounded-square icon badge (used on the left of cards and settings rows).
+    #[allow(clippy::too_many_arguments)]
+    fn icon_badge(
+        &mut self,
+        x: f32,
+        y: f32,
+        size: f32,
+        r: f32,
+        icon: Icon,
+        icon_size: f32,
+        color: [u8; 3],
+        tinted: bool,
+    ) {
+        let a = self.a;
+        if tinted {
+            self.f.fill(rrect(x, y, size, size, r), color, 0.16 * a);
+            self.f.stroke(rrect(x, y, size, size, r), 1.0, color, 0.30 * a);
+            self.f.icon(icon, x + size / 2.0, y + size / 2.0, icon_size, color, a);
+        } else {
+            self.f.fill(rrect(x, y, size, size, r), WHITE, 0.06 * a);
+            self.f.stroke(rrect(x, y, size, size, r), 1.0, WHITE, 0.09 * a);
+            self.f.icon(icon, x + size / 2.0, y + size / 2.0, icon_size, WHITE, 0.78 * a);
+        }
+    }
+
     /// Circular icon button with subtle hover background.
     fn button(&mut self, action: Action, cx: f32, cy: f32, r: f32, icon: Icon, size: f32) {
-        if self.hover == Some(action) {
+        let hovered = self.hover == Some(action);
+        if hovered {
             self.f.circle(cx, cy, r, WHITE, 0.12 * self.a);
         }
-        self.f.icon(icon, cx, cy, size, WHITE, self.a);
+        self.f.icon(icon, cx, cy, size, WHITE, if hovered { self.a } else { self.a * 0.85 });
         self.hit(action, cx - r, cy - r, r * 2.0, r * 2.0);
     }
 
@@ -1127,7 +1311,8 @@ impl Ctx<'_, '_> {
     fn toggle(&mut self, action: Action, cx: f32, cy: f32, r: f32, icon: Icon, size: f32, on: bool, accent: [u8; 3]) {
         let a = self.a;
         if on {
-            self.f.circle(cx, cy, r, accent, 0.26 * a);
+            self.f.circle(cx, cy, r, accent, 0.24 * a);
+            self.f.stroke(sk::PathBuilder::from_circle(cx, cy, r), 1.0, accent, 0.42 * a);
         } else if self.hover == Some(action) {
             self.f.circle(cx, cy, r, WHITE, 0.12 * a);
         }
@@ -1136,24 +1321,30 @@ impl Ctx<'_, '_> {
         self.hit(action, cx - r, cy - r, r * 2.0, r * 2.0);
     }
 
-    /// Header utility icon button (Settings gear, Pin) with subtle circular glass surface.
+    /// Header utility icon button (Settings gear, Pin) with bordered squircle/circle surface.
     #[allow(clippy::too_many_arguments)]
     fn util_btn(&mut self, action: Action, cx: f32, cy: f32, r: f32, icon: Icon, size: f32, on: bool, accent: [u8; 3]) {
         let a = self.a;
         let hovered = self.hover == Some(action);
         if on {
-            self.f.circle(cx, cy, r, accent, 0.24 * a);
-            self.f.stroke(sk::PathBuilder::from_circle(cx, cy, r), 1.0, accent, 0.45 * a);
+            self.f.circle(cx, cy, r, accent, 0.22 * a);
+            self.f.stroke(sk::PathBuilder::from_circle(cx, cy, r), 1.0, accent, 0.48 * a);
         } else {
-            self.f.circle(cx, cy, r, WHITE, if hovered { 0.14 } else { 0.06 } * a);
+            self.f.circle(cx, cy, r, WHITE, if hovered { 0.12 } else { 0.045 } * a);
+            self.f.stroke(
+                sk::PathBuilder::from_circle(cx, cy, r),
+                1.0,
+                WHITE,
+                if hovered { 0.16 } else { 0.08 } * a,
+            );
         }
         let color = if on { accent } else { WHITE };
-        let icon_a = if on || hovered { a } else { a * 0.72 };
+        let icon_a = if on || hovered { a } else { a * 0.75 };
         self.f.icon(icon, cx, cy, size, color, icon_a);
         self.hit(action, cx - r, cy - r, r * 2.0, r * 2.0);
     }
 
-    /// Hybrid tab item: expands to `[Icon + Label]` when selected, collapses to compact `[Icon + Badge]` when inactive.
+    /// Hybrid tab item inside the recessed header dock: expands to `[Icon + Label]` when active.
     #[allow(clippy::too_many_arguments)]
     fn tab_item(
         &mut self,
@@ -1173,40 +1364,38 @@ impl Ctx<'_, '_> {
         let cy = y + h / 2.0;
 
         if selected {
-            let label_w = self.f.width(label, 12.0, true);
+            let label_w = self.f.width(label, 11.5, true);
             let badge_str = (count > 0).then(|| count.to_string());
-            let badge_w = badge_str.as_deref().map_or(0.0, |b| self.f.width(b, 10.5, true) + 6.0);
-            let w = 26.0 + label_w + badge_w + 11.0;
+            let badge_w = badge_str.as_deref().map_or(0.0, |b| self.f.width(b, 10.0, true) + 6.0);
+            let w = 25.0 + label_w + badge_w + 10.0;
 
-            self.f.fill(rrect(x, y, w, h, 12.0), WHITE, 0.15 * a);
-            self.f.stroke(rrect(x, y, w, h, 12.0), 1.0, WHITE, 0.12 * a);
-            self.f.icon(icon, x + 14.0, cy, 13.0, accent, a);
-            self.f.text(x + 25.0, y + 16.5, 12.0, true, WHITE, a, label);
+            self.f.fill(rrect(x, y, w, h, 8.0), WHITE, 0.13 * a);
+            self.f.stroke(rrect(x, y, w, h, 8.0), 1.0, WHITE, 0.14 * a);
+            self.f.icon(icon, x + 13.0, cy, 12.5, accent, a);
+            self.f.text(x + 23.5, y + 16.0, 11.5, true, WHITE, a, label);
             if let Some(b) = badge_str {
-                self.f.text(x + 29.0 + label_w, y + 16.0, 10.5, true, accent, a * 0.95, &b);
+                self.f.text(x + 27.5 + label_w, y + 15.5, 10.0, true, accent, a * 0.95, &b);
             }
             self.hit(action, x, y, w, h);
             w
         } else {
-            let w = 28.0;
-            self.f.fill(
-                rrect(x, y, w, h, 12.0),
-                WHITE,
-                if hovered { 0.12 } else { 0.04 } * a,
-            );
+            let w = 26.0;
+            if hovered {
+                self.f.fill(rrect(x, y, w, h, 8.0), WHITE, 0.08 * a);
+            }
             self.f.icon(
                 icon,
                 x + w / 2.0,
                 cy,
-                13.0,
+                12.5,
                 WHITE,
                 if hovered { 0.95 } else { 0.62 } * a,
             );
             if count > 0 {
                 let badge = count.min(99).to_string();
-                let (bx, by) = (x + w - 5.0, y + 5.5);
-                self.f.circle(bx, by, 6.2, accent, 0.95 * a);
-                self.f.text_center(bx, by + 3.2, 8.5, true, BLACK, a, &badge);
+                let (bx, by) = (x + w - 4.5, y + 5.0);
+                self.f.circle(bx, by, 5.8, accent, 0.95 * a);
+                self.f.text_center(bx, by + 3.0, 8.0, true, BLACK, a, &badge);
             }
             self.hit(action, x, y, w, h);
             w
@@ -1228,7 +1417,7 @@ impl Ctx<'_, '_> {
             0.0
         };
         if bg > 0.0 {
-            self.f.fill(rrect(x, y, w, 24.0, 12.0), WHITE, bg * a);
+            self.f.fill(rrect(x, y, w, 24.0, 8.0), WHITE, bg * a);
         }
         let alpha = if selected {
             1.0
@@ -1247,16 +1436,16 @@ impl Ctx<'_, '_> {
         w
     }
 
-    /// Compact toggle chip with active accent tint and status indicator dot.
+    /// Compact bordered toggle chip with active accent tint and status indicator dot.
     fn chip(&mut self, action: Action, x: f32, y: f32, label: &str, active: bool, accent: [u8; 3]) -> f32 {
         let a = self.a;
-        let label_w = self.f.width(label, 11.5, true);
+        let label_w = self.f.width(label, 11.0, true);
         let dot_r = 2.5;
-        let dot_x = x + 10.0 + dot_r;
-        let dot_y = y + 12.0;
-        let w = label_w + 20.0 + dot_r * 2.0 + 4.0;
-        let h = 24.0;
-        let r = 12.0;
+        let dot_x = x + 9.0 + dot_r;
+        let dot_y = y + 11.0;
+        let w = label_w + 18.0 + dot_r * 2.0 + 4.0;
+        let h = 22.0;
+        let r = 6.5;
 
         let hovered = self.hover == Some(action);
         let bg_color = if active { accent } else { WHITE };
@@ -1265,19 +1454,20 @@ impl Ctx<'_, '_> {
         } else if hovered {
             0.10
         } else {
-            0.05
+            0.045
         };
         self.f.fill(rrect(x, y, w, h, r), bg_color, bg_alpha * a);
 
         if active {
-            self.f.stroke(rrect(x, y, w, h, r), 1.0, accent, 0.35 * a);
+            self.f.stroke(rrect(x, y, w, h, r), 1.0, accent, 0.38 * a);
             self.f.circle(dot_x, dot_y, dot_r, accent, a);
         } else {
-            self.f.circle(dot_x, dot_y, dot_r, WHITE, 0.22 * a);
+            self.f.stroke(rrect(x, y, w, h, r), 1.0, WHITE, 0.08 * a);
+            self.f.circle(dot_x, dot_y, dot_r, WHITE, 0.25 * a);
         }
 
-        let text_alpha = if active { 0.95 } else if hovered { 0.75 } else { 0.45 };
-        self.f.text(dot_x + dot_r + 6.0, y + 16.0, 11.5, true, WHITE, text_alpha * a, label);
+        let text_alpha = if active { 0.96 } else if hovered { 0.80 } else { 0.52 };
+        self.f.text(dot_x + dot_r + 5.5, y + 15.0, 11.0, true, WHITE, text_alpha * a, label);
 
         self.hit(action, x, y, w, h);
         w
