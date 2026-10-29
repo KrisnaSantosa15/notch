@@ -173,18 +173,23 @@ pub fn language_name(lang: u16) -> (String, String) {
 
 pub fn clipboard_text(hwnd: HWND) -> Option<String> {
     use windows::Win32::System::DataExchange::{CloseClipboard, GetClipboardData, OpenClipboard};
-    use windows::Win32::System::Memory::{GlobalLock, GlobalUnlock};
+    use windows::Win32::System::Memory::{GlobalLock, GlobalSize, GlobalUnlock};
     use windows::Win32::System::Ole::CF_UNICODETEXT;
     unsafe {
         OpenClipboard(hwnd).ok()?;
         let text = GetClipboardData(CF_UNICODETEXT.0 as u32).ok().and_then(|h| {
             let global = windows::Win32::Foundation::HGLOBAL(h.0);
+            let max_u16 = GlobalSize(global) / 2;
+            if max_u16 == 0 {
+                return None;
+            }
             let ptr = GlobalLock(global) as *const u16;
             if ptr.is_null() {
                 return None;
             }
-            let len = (0..).take_while(|&i| *ptr.add(i) != 0).count();
-            let s = String::from_utf16_lossy(std::slice::from_raw_parts(ptr, len));
+            let slice = std::slice::from_raw_parts(ptr, max_u16);
+            let len = slice.iter().position(|&c| c == 0).unwrap_or(max_u16);
+            let s = String::from_utf16_lossy(&slice[..len]);
             let _ = GlobalUnlock(global);
             Some(s)
         });
