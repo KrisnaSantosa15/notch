@@ -677,6 +677,7 @@ impl App {
             return;
         }
         self.editing = false;
+        self.surrogate = None;
         unsafe {
             let _ = KillTimer(self.hwnd, TIMER_CARET);
         }
@@ -688,6 +689,11 @@ impl App {
         if !self.editing {
             return;
         }
+        if (0xD800..=0xDBFF).contains(&c) {
+            self.surrogate = Some(c as u16);
+            return;
+        }
+        let prev_surrogate = self.surrogate.take();
         match c {
             0x08 => {
                 self.draft.pop();
@@ -708,6 +714,13 @@ impl App {
             0x16 => {
                 if let Some(text) = system::clipboard_text(self.hwnd) {
                     self.draft += text.lines().next().unwrap_or("");
+                }
+            }
+            0xDC00..=0xDFFF => {
+                if let Some(hi) = prev_surrogate {
+                    if let Some(Ok(ch)) = char::decode_utf16([hi, c as u16]).next() {
+                        self.draft.push(ch);
+                    }
                 }
             }
             c if c >= 0x20 && c != 0x7F => {

@@ -273,6 +273,7 @@ struct App {
     task_scroll: usize,
     editing: bool,
     draft: String,
+    surrogate: Option<u16>,
     /// When the draft started ending with a time (drives the bell pop-in).
     draft_time_since: Option<Instant>,
     caret: bool,
@@ -671,6 +672,7 @@ fn main() -> Result<()> {
             task_scroll: 0,
             editing: false,
             draft: String::new(),
+            surrogate: None,
             draft_time_since: None,
             caret: true,
             fonts: Some(text::Fonts::load()),
