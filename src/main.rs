@@ -23,7 +23,7 @@ pub(crate) mod config;
 pub(crate) mod update;
 
 use std::cell::RefCell;
-use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicIsize, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tiny_skia as sk;
@@ -291,6 +291,7 @@ thread_local! {
 }
 
 static MAIN_HWND: AtomicIsize = AtomicIsize::new(0);
+static TASKBAR_CREATED_MSG: AtomicU32 = AtomicU32::new(0);
 
 unsafe extern "system" fn console_ctrl_handler(ctrl_type: u32) -> BOOL {
     if ctrl_type == CTRL_C_EVENT || ctrl_type == CTRL_BREAK_EVENT || ctrl_type == CTRL_CLOSE_EVENT {
@@ -511,6 +512,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             let _ = UnregisterHotKey(hwnd, HOTKEY_PIN);
             PostQuitMessage(0);
         }
+        m if m != 0 && m == TASKBAR_CREATED_MSG.load(Ordering::Relaxed) => add_tray_icon(hwnd),
         _ => return DefWindowProcW(hwnd, msg, wp, lp),
     }
     LRESULT(0)
@@ -537,6 +539,24 @@ fn load_tray_icon() -> HICON {
             LR_DEFAULTCOLOR,
         )
         .unwrap_or_else(|_| LoadIconW(None, IDI_APPLICATION).unwrap_or_default())
+    }
+}
+
+fn add_tray_icon(hwnd: HWND) {
+    unsafe {
+        let mut nid = NOTIFYICONDATAW {
+            cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+            hWnd: hwnd,
+            uID: 1,
+            uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
+            uCallbackMessage: WM_APP_TRAY,
+            hIcon: load_tray_icon(),
+            szTip: [0; 128],
+            ..Default::default()
+        };
+        let tip = "Notch by Krisna Santosa\0".encode_utf16().collect::<Vec<u16>>();
+        nid.szTip[..tip.len()].copy_from_slice(&tip);
+        let _ = Shell_NotifyIconW(NIM_ADD, &nid);
     }
 }
 
@@ -693,19 +713,8 @@ fn main() -> Result<()> {
             let _ = PostMessageW(HWND(update_hwnd as _), WM_APP_UPDATE, WPARAM(0), LPARAM(0));
         });
 
-        let mut nid = NOTIFYICONDATAW {
-            cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
-            hWnd: hwnd,
-            uID: 1,
-            uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
-            uCallbackMessage: WM_APP_TRAY,
-            hIcon: load_tray_icon(),
-            szTip: [0; 128],
-            ..Default::default()
-        };
-        let tip = "Notch by Krisna Santosa\0".encode_utf16().collect::<Vec<u16>>();
-        nid.szTip[..tip.len()].copy_from_slice(&tip);
-        let _ = Shell_NotifyIconW(NIM_ADD, &nid);
+        TASKBAR_CREATED_MSG.store(RegisterWindowMessageW(w!("TaskbarCreated")), Ordering::Relaxed);
+        add_tray_icon(hwnd);
 
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
