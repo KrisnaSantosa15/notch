@@ -36,6 +36,21 @@ impl App {
         Some(lyrics.lines.get(self.lyric_line?)?.1.as_str())
     }
 
+    /// True when music is actively playing with synced lyrics enabled and available.
+    pub(crate) fn has_active_lyrics(&self) -> bool {
+        self.info.playing && self.lyrics_on && lyrics_of(&self.lyrics).is_some()
+    }
+
+    /// True when maximized-window Slim Dodge is active and lyrics are playing,
+    /// rendering a compact 22dp lyric pill so lyrics stay readable while leaving
+    /// browser tabs underneath clickable.
+    pub(crate) fn is_compact_lyric(&self, live: Live) -> bool {
+        !self.open
+            && !self.hovering
+            && self.slim
+            && (live == Live::Lyric || (live == Live::Media && self.has_active_lyrics()))
+    }
+
     fn live_width(&mut self, live: Live) -> f32 {
         match live {
             Live::Hud(Hud::Caps(_) | Hud::Layout(_)) => 280.0,
@@ -50,8 +65,15 @@ impl App {
                 } else if live == Live::Lyric {
                     let text = self.lyric_text().unwrap_or("").to_string();
                     let s = self.scale;
-                    let w = self.fonts.as_mut().map_or(0.0, |f| f.measure(&text, 13.0 * s, true) / s);
-                    (w + 108.0).clamp(236.0, 470.0)
+                    let compact = self.is_compact_lyric(live);
+                    let font_sz = if compact { 11.5 } else { 13.0 };
+                    let pad = if compact { 90.0 } else { 108.0 };
+                    let min_w = if compact { 210.0 } else { 236.0 };
+                    let max_w = if compact { 440.0 } else { 470.0 };
+                    let w = self.fonts.as_mut().map_or(0.0, |f| f.measure(&text, font_sz * s, true) / s);
+                    (w + pad).clamp(min_w, max_w)
+                } else if self.is_compact_lyric(live) {
+                    210.0
                 } else {
                     236.0
                 }
@@ -135,7 +157,11 @@ impl App {
         !self.open
             && !self.hovering
             && self.slim
-            && !matches!(live, Live::Hud(_) | Live::Alert | Live::Reminder | Live::Welcome)
+            && !self.has_active_lyrics()
+            && !matches!(
+                live,
+                Live::Hud(_) | Live::Alert | Live::Reminder | Live::Welcome | Live::Lyric
+            )
     }
 
     /// Recalculate notch target dimensions and start its animation.
@@ -149,6 +175,8 @@ impl App {
             (self.config.notch.open_width, self.config.notch.open_height, self.config.notch.open_radius)
         } else if self.is_slim(live) {
             (104.0, 5.0, 2.5)
+        } else if self.is_compact_lyric(live) {
+            (self.live_width(live), 22.0, 9.5)
         } else {
             (self.live_width(live), self.config.notch.closed_height, self.config.notch.corner_radius)
         };

@@ -116,20 +116,24 @@ impl App {
             mask.fill_path(sp, sk::FillRule::Winding, true, ts);
         }
 
-        let slim_t = ((h - 7.0) / (closed_h - 7.0).max(1.0)).clamp(0.0, 1.0);
+        let slim_t = ((h - 6.5) / 11.5).clamp(0.0, 1.0);
         let closed_a = (1.0 - t * 3.0).clamp(0.0, 1.0) * slim_t * self.content_alpha();
         let open_a = ((t - 0.55) / 0.45).clamp(0.0, 1.0);
 
         let mut fonts = self.fonts.take().unwrap();
         let mut f = Frame { pm, mask, s, fonts: &mut fonts };
         if slim_t < 1.0 && !self.open {
-            let slim_a = (1.0 - slim_t) * 0.75;
-            let indicator_color = if self.info.playing || self.focus.running() {
-                self.accent()
+            let slim_a = (1.0 - slim_t) * 0.85;
+            let bar_y = (h - 2.2).max(1.0) / 2.0;
+            if self.focus.running() {
+                let track_w = 72.0;
+                let fill_w = (track_w * self.focus.progress().clamp(0.0, 1.0)).max(2.0);
+                f.fill(rrect(cx - track_w / 2.0, bar_y, track_w, 2.2, 1.1), WHITE, slim_a * 0.22);
+                f.fill(rrect(cx - track_w / 2.0, bar_y, fill_w, 2.2, 1.1), self.accent(), slim_a);
             } else {
-                WHITE
-            };
-            f.fill(rrect(cx - 20.0, (h - 2.0).max(1.0) / 2.0, 40.0, 2.0, 1.0), indicator_color, slim_a);
+                let indicator_color = if self.info.playing { self.accent() } else { WHITE };
+                f.fill(rrect(cx - 20.0, bar_y, 40.0, 2.0, 1.0), indicator_color, slim_a * 0.85);
+            }
         }
         // Specular glass rim highlight: ambient reflection + dynamic cursor glint
         if t > 0.0 {
@@ -231,10 +235,12 @@ impl App {
 
     // ---- Closed notch -----------------------------------------------------------------------
 
-    /// Single row 32 dp tall: icon on the left, label on the right.
+    /// Single row (32 dp default, or 22 dp in Compact Lyric Mode): icon on the left, label on the right.
     fn draw_live(&self, f: &mut Frame, hits: &mut Vec<(Action, sk::Rect)>, x0: f32, x1: f32, cx: f32, a: f32) {
-        let cy = self.config.notch.closed_height / 2.0;
-        let (left, right) = (x0 + 22.0, x1 - 16.0);
+        let ch = self.h.x.clamp(18.0, self.config.notch.closed_height);
+        let cy = ch / 2.0;
+        let compact = ch < 26.0;
+        let (left, right) = (x0 + if compact { 18.0 } else { 22.0 }, x1 - if compact { 12.0 } else { 16.0 });
         match self.live {
             Live::Hud(Hud::Volume(level, muted)) => {
                 let waves = if muted || level <= 0.0 { 0 } else { 1 + (level * 2.99) as u8 };
@@ -354,7 +360,7 @@ impl App {
                 f.text_right(right, 21.0, 13.0, true, color, a, &mmss(self.focus.remaining().ceil()));
             }
             Live::Media | Live::Lyric => {
-                self.mini_art(f, x0, a);
+                self.mini_art(f, x0, ch, a);
 
                 if self.hover_ready && self.info.has_session {
                     let avail_w = (x1 - x0 - 130.0).max(40.0);
@@ -364,7 +370,7 @@ impl App {
                         &self.info.title
                     };
                     let fit_title = f.fit(title, 11.5, true, avail_w);
-                    f.text(x0 + 40.0, 20.5, 11.5, true, WHITE, a, &fit_title);
+                    f.text(x0 + 40.0, cy + 4.5, 11.5, true, WHITE, a, &fit_title);
 
                     let p_x = x1 - 66.0;
                     let t_x = x1 - 44.0;
@@ -395,9 +401,16 @@ impl App {
                         hits.push((Action::Next, r));
                     }
                 } else {
+                    let font_sz = if compact { 11.5 } else { 13.0 };
+                    let text_y = cy + font_sz * 0.36;
+                    let pad = if compact { 84.0 } else { 108.0 };
                     if self.live == Live::Lyric {
-                        let text = f.fit(self.lyric_text().unwrap_or(""), 13.0, true, x1 - x0 - 108.0);
-                        f.text_center(cx, 21.0, 13.0, true, WHITE, a, &text);
+                        let text = f.fit(self.lyric_text().unwrap_or(""), font_sz, true, (x1 - x0 - pad).max(40.0));
+                        f.text_center(cx, text_y, font_sz, true, WHITE, a, &text);
+                    } else if compact && self.has_active_lyrics() {
+                        let fallback = if self.info.title.is_empty() { "♪  Instrumental" } else { &self.info.title };
+                        let text = f.fit(fallback, 11.0, false, (x1 - x0 - pad).max(40.0));
+                        f.text_center(cx, text_y, 11.0, false, WHITE, a * SOFT, &text);
                     }
                     self.draw_equalizer(f, right, cy, a);
                 }
@@ -424,10 +437,14 @@ impl App {
         }
     }
 
-    fn mini_art(&self, f: &mut Frame, x0: f32, a: f32) {
+    fn mini_art(&self, f: &mut Frame, x0: f32, ch: f32, a: f32) {
+        let size = (ch - 8.0).clamp(14.0, 20.0);
+        let y = (ch - size) / 2.0;
+        let r = (size * 0.3).clamp(4.0, 6.0);
+        let pad_x = if ch < 26.0 { 10.0 } else { 12.0 };
         match &self.info.art {
-            Some(art) => f.image(&art.image, x0 + 12.0, 6.0, 20.0, 6.0, a),
-            None => f.art_placeholder(x0 + 12.0, 6.0, 20.0, 6.0, a),
+            Some(art) => f.image(&art.image, x0 + pad_x, y, size, r, a),
+            None => f.art_placeholder(x0 + pad_x, y, size, r, a),
         }
     }
 
@@ -437,6 +454,11 @@ impl App {
         const PHASE: [f32; 4] = [0.0, 1.9, 3.3, 4.6];
         let t = self.started.elapsed().as_secs_f32();
         let color = self.accent();
+        let compact = cy < 13.0;
+        let max_add = if compact { 7.5 } else { 11.0 };
+        let base_h = if compact { 2.5 } else { 3.0 };
+        let bar_w = if compact { 2.5 } else { 3.0 };
+        let step = if compact { 4.6 } else { 5.5 };
         for i in 0..4 {
             let amp = if self.info.playing {
                 let v = (t * SPEED[i] + PHASE[i]).sin() * 0.6 + (t * SPEED[i] * 1.7 + PHASE[i] * 2.0).sin() * 0.4;
@@ -444,9 +466,9 @@ impl App {
             } else {
                 0.22
             };
-            let h = 3.0 + 11.0 * amp;
-            let x = right - 3.0 - (3 - i) as f32 * 5.5;
-            f.fill(rrect(x, cy - h / 2.0, 3.0, h, 1.5), color, a);
+            let h = base_h + max_add * amp;
+            let x = right - bar_w - (3 - i) as f32 * step;
+            f.fill(rrect(x, cy - h / 2.0, bar_w, h, bar_w / 2.0), color, a);
         }
     }
 
